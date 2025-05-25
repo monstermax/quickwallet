@@ -54,17 +54,11 @@ https://github.com/user-attachments/assets/44673d29-c579-46b0-bb1e-79d693f79787
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/quickwallet.git
+   git clone https://github.com/monstermax/quickwallet.git
    cd quickwallet
    ```
 
-2. **Download required libraries**:
-   Create a `lib/` folder and download:
-   - `ethers-6.13.5.js` from [ethers.js releases](https://github.com/ethers-io/ethers.js/)
-   - `solana-web3.js` from [Solana Web3.js](https://github.com/solana-labs/solana-web3.js)
-   - `base58.js` from any Base58 library
-
-3. **Load in Chrome**:
+2. **Load in Chrome**:
    - Open `chrome://extensions/`
    - Enable "Developer mode"
    - Click "Load unpacked"
