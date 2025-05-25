@@ -41,13 +41,13 @@ Only activate it on trusted sites (pump.fun, well-known AMMs, etc.).
 
 ### Before QuickWallet
 <video width="100%" controls>
- <source src="./docs/video/before.mp4" type="video/mp4">
+ <source src="https://github.com/user-attachments/assets/e60f43b8-755d-4b2b-a440-75112a7bdba4" type="video/mp4">
  Your browser does not support the video tag.
 </video>
 
 ### After QuickWallet
 <video width="100%" controls>
- <source src="./docs/video/after.mp4" type="video/mp4">
+ <source src="https://github.com/user-attachments/assets/44673d29-c579-46b0-bb1e-79d693f79787" type="video/mp4">
  Your browser does not support the video tag.
 </video>
 
