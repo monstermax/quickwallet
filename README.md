@@ -37,6 +37,23 @@ Only activate it on trusted sites (pump.fun, well-known AMMs, etc.).
 - **Transaction Interception**: Seamless wallet provider injection
 - **Input Validation**: Strict private key format validation and security checks
 
+## 🎥 Demo
+
+### Before QuickWallet
+<video width="100%" controls>
+ <source src="./docs/video/before.mp4" type="video/mp4">
+ Your browser does not support the video tag.
+</video>
+
+### After QuickWallet
+<video width="100%" controls>
+ <source src="./docs/video/after.mp4" type="video/mp4">
+ Your browser does not support the video tag.
+</video>
+
+*See the difference: from manual wallet confirmations to seamless auto-signing! 🚀*
+
+
 ## 🚀 Installation
 
 ### Option 1: Load Unpacked (Recommended for Development)
