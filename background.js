@@ -5,7 +5,7 @@
 chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
         id: "show-wallet",
-        title: "Set QuickWallet private keys",
+        title: "Set QuickWallet private keys (Alt+W)",
         contexts: ["all"] // ou ["page", "selection", etc.]
     });
 });

@@ -1,7 +1,7 @@
 // injected_script.js
 
-import { initializeQuickWallet_Evm } from "./wallet_evm.js";
-import { initializeQuickWallet_Solana } from "./wallet_solana.js";
+import { initializeQuickWallet_Evm, validateEvmPrivateKey } from "./wallet_evm.js";
+import { initializeQuickWallet_Solana, validateSolanaPrivateKey } from "./wallet_solana.js";
 import { showNotification } from "./utils.js";
 
 
@@ -74,25 +74,20 @@ function showWallet() {
         };
 
         for (const input of privateKeyInputs) {
-            const chain = input.dataset.chain;
-            let privateKey = input.value.trim();
-
-            //console.log('PK', chain, privateKey);
-            //if (!privateKey) continue;
-
-            if (privateKey.includes(' ')) privateKey = null;
+            const chain = input.dataset.chain; // string
+            let privateKey = input.value.trim(); // string | null
 
             if (chain === 'evm') {
-                if (privateKey.length !== 66 || ! privateKey.startsWith('0x')) privateKey = null;
+                privateKey = validateEvmPrivateKey(privateKey);
 
-                window.QuickWallet.evm.setPrivateKey(privateKey ?? null);
+                window.QuickWallet.evm.setPrivateKey(privateKey);
                 actives['evm'] = !!privateKey;
             }
 
             if (chain === 'solana') {
-                if (privateKey.length !== 88) privateKey = null;
+                privateKey = validateSolanaPrivateKey(privateKey);
 
-                window.QuickWallet.solana.setPrivateKey(privateKey ?? null);
+                window.QuickWallet.solana.setPrivateKey(privateKey);
                 actives['solana'] = !!privateKey;
             }
         }

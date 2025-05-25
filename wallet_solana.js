@@ -20,7 +20,7 @@ export function initializeQuickWallet_Solana() {
 
 
 
-function Wallet_Solana(privateKey=null) {
+function Wallet_Solana(privateKey = null) {
 
     const setPrivateKey = (newPrivateKey) => {
         if (!privateKey && newPrivateKey) {
@@ -235,6 +235,35 @@ function _getPublicKeyFromPrivate(privateKeyBase58) {
         console.error('Error getting public key:', error);
         throw error;
     }
+}
+
+
+
+export function validateSolanaPrivateKey(key) {
+    if (!key) return null;
+
+    // Nettoyer les espaces
+    key = key.replace(/\s/g, '');
+
+    // Validation longueur base58
+    if (!/^[1-9A-HJ-NP-Za-km-z]{87,88}$/.test(key)) {
+        console.warn('Invalid Solana private key format');
+        return null;
+    }
+
+    // Test de décodage
+    try {
+        const decoded = window.QuickWallet.lib.base58.decode(key);
+        if (decoded.length !== 64) {
+            throw new Error('Invalid key length after decode');
+        }
+
+    } catch (e) {
+        console.warn('Invalid Solana private key:', e.message);
+        return null;
+    }
+
+    return key;
 }
 
 
