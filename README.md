@@ -40,16 +40,10 @@ Only activate it on trusted sites (pump.fun, well-known AMMs, etc.).
 ## 🎥 Demo
 
 ### Before QuickWallet
-<video width="100%" controls>
- <source src="https://github.com/user-attachments/assets/e60f43b8-755d-4b2b-a440-75112a7bdba4" type="video/mp4">
- Your browser does not support the video tag.
-</video>
+https://github.com/user-attachments/assets/e60f43b8-755d-4b2b-a440-75112a7bdba4
 
 ### After QuickWallet
-<video width="100%" controls>
- <source src="https://github.com/user-attachments/assets/44673d29-c579-46b0-bb1e-79d693f79787" type="video/mp4">
- Your browser does not support the video tag.
-</video>
+https://github.com/user-attachments/assets/44673d29-c579-46b0-bb1e-79d693f79787
 
 *See the difference: from manual wallet confirmations to seamless auto-signing! 🚀*
 
