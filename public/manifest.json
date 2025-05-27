@@ -1,0 +1,36 @@
+{
+    "manifest_version": 3,
+    "name": "Quick Wallet React",
+    "version": "2.0.0",
+    "description": "Un wallet hack pour signer automatiquement les transactions EVM & Solana (Version React)",
+    "permissions": [
+        "contextMenus",
+        "storage",
+        "activeTab"
+    ],
+    "background": {
+        "service_worker": "background.js",
+        "type": "module"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "content.js"
+            ],
+            "run_at": "document_start"
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "injected.js"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
+    ]
+}
