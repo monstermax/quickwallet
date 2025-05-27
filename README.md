@@ -40,16 +40,10 @@ Only activate it on trusted sites (pump.fun, well-known AMMs, etc.).
 ## 🎥 Demo
 
 ### Before QuickWallet
-<video width="100%" controls>
- <source src="./docs/video/before.mp4" type="video/mp4">
- Your browser does not support the video tag.
-</video>
+https://github.com/user-attachments/assets/e60f43b8-755d-4b2b-a440-75112a7bdba4
 
 ### After QuickWallet
-<video width="100%" controls>
- <source src="./docs/video/after.mp4" type="video/mp4">
- Your browser does not support the video tag.
-</video>
+https://github.com/user-attachments/assets/44673d29-c579-46b0-bb1e-79d693f79787
 
 *See the difference: from manual wallet confirmations to seamless auto-signing! 🚀*
 
@@ -60,17 +54,11 @@ Only activate it on trusted sites (pump.fun, well-known AMMs, etc.).
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/quickwallet.git
+   git clone https://github.com/monstermax/quickwallet.git
    cd quickwallet
    ```
 
-2. **Download required libraries**:
-   Create a `lib/` folder and download:
-   - `ethers-6.13.5.js` from [ethers.js releases](https://github.com/ethers-io/ethers.js/)
-   - `solana-web3.js` from [Solana Web3.js](https://github.com/solana-labs/solana-web3.js)
-   - `base58.js` from any Base58 library
-
-3. **Load in Chrome**:
+2. **Load in Chrome**:
    - Open `chrome://extensions/`
    - Enable "Developer mode"
    - Click "Load unpacked"
