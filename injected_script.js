@@ -133,7 +133,7 @@ function showWalletDialog(walletStates = {}) {
            </div>`
         : `<div class="wallet-input-group">
               <label class="wallet-label">EVM:</label>
-              <input type="password" class="wallet-input" data-chain="evm" placeholder="Enter your private key">
+              <input type="password" class="wallet-input" data-chain="evm" autocomplete="off" placeholder="Enter your private key">
            </div>`;
 
     const solField = solConnected
@@ -144,7 +144,7 @@ function showWalletDialog(walletStates = {}) {
            </div>`
         : `<div class="wallet-input-group">
               <label class="wallet-label">Solana:</label>
-              <input type="password" class="wallet-input" data-chain="solana" placeholder="Enter your private key">
+              <input type="password" class="wallet-input" data-chain="solana" autocomplete="off" placeholder="Enter your private key">
            </div>`;
 
     // Set HTML content

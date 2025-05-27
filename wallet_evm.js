@@ -189,8 +189,8 @@ function injectWallet(privateKey) {
 
             if (e.method === 'eth_chainId') {
                 // Intercept 'eth_chainId' request result
-                //_chainId = r;
-                window.QuickWallet.evm.setChainId(r);
+                const chainId = parseInt(r, 16);
+                window.QuickWallet.evm.setChainId(chainId);
             }
 
             console.log(' => request result =', r);
@@ -203,41 +203,43 @@ function injectWallet(privateKey) {
 function _getRpcUrlForChain(chainId) {
     // Définir les URLs RPC par défaut pour les chaînes courantes
 
+    //const chainIdHex = '0x' + (chainId).toString(16);
+
     const rpcUrls = {
         // Mainnets
-        '0x1': 'https://0xrpc.io/eth',                              // Ethereum Mainnet
-        '0x89': 'https://polygon-rpc.com',                          // Polygon
-        '0xa': 'https://mainnet.optimism.io',                       // Optimism
-        '0x38': 'https://bsc-dataseed.bnbchain.org',                // BSC
-        '0x8f': 'https://rpc.soniclabs.com',                        // Sonic
-        '0x3e7': 'https://rpc.hyperliquid.xyz/evm',                 // HyperEVM
-        '0x74c': 'https://rpc.soneium.org',                         // Soneium
-        '0xab5': 'https://api.mainnet.abs.xyz',                     // Abstract
-        '0x2105': 'https://mainnet.base.org',                       // Base
-        '0xa4b1': 'https://arb1.arbitrum.io/rpc',                   // Arbitrum
-        '0xa86a': 'https://api.avax.network/ext/bc/C/rpc',          // Avalanche
-        '0x13881': 'https://rpc.berachain.com',                     // Berachain
-        '0x82750': 'https://rpc.scroll.io',                         // Scroll
-        '0xfa': 'https://rpc.fantom.network',                       // Fantom
-        '0x143': 'https://rpc.monad.xyz',                           // Monad (note: pas de RPC mainnet dans votre config)
+        1: 'https://0xrpc.io/eth',                               // Ethereum Mainnet
+        137: 'https://polygon-rpc.com',                          // Polygon
+        10: 'https://mainnet.optimism.io',                       // Optimism
+        56: 'https://bsc-dataseed.bnbchain.org',                 // BSC
+        143: 'https://rpc.soniclabs.com',                        // Sonic
+        999: 'https://rpc.hyperliquid.xyz/evm',                  // HyperEVM
+        1868: 'https://rpc.soneium.org',                         // Soneium
+        2741: 'https://api.mainnet.abs.xyz',                     // Abstract
+        8453: 'https://mainnet.base.org',                        // Base
+        42161: 'https://arb1.arbitrum.io/rpc',                   // Arbitrum
+        43114: 'https://api.avax.network/ext/bc/C/rpc',          // Avalanche
+        80001: 'https://rpc.berachain.com',                      // Berachain
+        534352: 'https://rpc.scroll.io',                         // Scroll
+        250: 'https://rpc.fantom.network',                       // Fantom
 
         // Testnets
-        '0xaa36a7': 'https://ethereum-sepolia-rpc.publicnode.com',  // Ethereum Sepolia
-        '0x14a34': 'https://sepolia.base.org',                      // Base Sepolia
-        '0x66eee': 'https://sepolia-rollup.arbitrum.io/rpc',        // Arbitrum Sepolia
-        '0xaa37dc': 'https://sepolia.optimism.io',                  // Optimism Sepolia
-        '0x8274f': 'https://sepolia-rpc.scroll.io',                 // Scroll Sepolia
-        '0x279f': 'https://testnet-rpc.monad.xyz',                  // Monad Testnet
-        '0x18c6': 'https://carrot.megaeth.com/rpc',                 // MegaETH Testnet
-        '0x138c9': 'https://bepolia.rpc.berachain.com',             // Berachain Bepolia
-        '0xc498': 'https://dream-rpc.somnia.network',               // Somnia Shannon
-        '0x79a': 'https://rpc.minato.soneium.org',                  // Soneium Minato
-        '0x61': 'https://data-seed-prebsc-1-s1.bnbchain.org:8545',  // BSC Testnet
-        '0xa869': 'https://avalanche-fuji.drpc.org',                // Avalanche Fuji
-        '0x5': 'https://eth-goerli.public.blastapi.io',             // Goerli Testnet (même si pas dans votre enum)
+        11155111: 'https://ethereum-sepolia-rpc.publicnode.com',  // Ethereum Sepolia
+        84532: 'https://sepolia.base.org',                        // Base Sepolia
+        421614: 'https://sepolia-rollup.arbitrum.io/rpc',         // Arbitrum Sepolia
+        11155420: 'https://sepolia.optimism.io',                  // Optimism Sepolia
+        534351: 'https://sepolia-rpc.scroll.io',                  // Scroll Sepolia
+        10143: 'https://testnet-rpc.monad.xyz',                   // Monad Testnet
+        6342: 'https://carrot.megaeth.com/rpc',                   // MegaETH Testnet
+        80073: 'https://bepolia.rpc.berachain.com',               // Berachain Bepolia
+        50312: 'https://dream-rpc.somnia.network',                // Somnia Shannon
+        1946: 'https://rpc.minato.soneium.org',                   // Soneium Minato
+        97: 'https://data-seed-prebsc-1-s1.bnbchain.org:8545',    // BSC Testnet
+        43113: 'https://avalanche-fuji.drpc.org',                 // Avalanche Fuji
+        5: 'https://eth-goerli.public.blastapi.io',               // Goerli Testnet
+        16601: 'https://evmrpc-testnet.0g.ai',                    // OG Galileo Testnet
 
         // Autres
-        '0x2540be3ff': 'https://chainscript.vps2.karmas.fr/',       // ChainScript
+        9999999999: 'https://chainscript.vps2.karmas.fr/',        // ChainScript
     };
 
 
@@ -332,7 +334,7 @@ async function sendTransaction(args, privateKey) {
 
                 const txRequest = {
                     type: 2,
-                    chainId: parseInt(window.QuickWallet.evm.getChainId(), 16),
+                    chainId: window.QuickWallet.evm.getChainId(),
                     nonce: parseInt(nonce, 16),
                     to: tx.to,
                     value: tx.value || '0x0',
@@ -348,7 +350,7 @@ async function sendTransaction(args, privateKey) {
             } else {
                 // Transaction legacy (type 0)
                 const txRequest = {
-                    chainId: parseInt(window.QuickWallet.evm.getChainId(), 16),
+                    chainId: window.QuickWallet.evm.getChainId(),
                     nonce: parseInt(nonce, 16),
                     to: tx.to,
                     value: tx.value || '0x0',
