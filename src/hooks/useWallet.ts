@@ -1,10 +1,11 @@
 // src/hooks/useWallet.ts
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { ethers } from 'ethers'
 import { Keypair } from '@solana/web3.js'
 import { decode } from 'bs58'
 
+import { walletManager } from '../services/WalletManager'
 import { validateEvmPrivateKey, validateSolanaPrivateKey } from '../services/validation'
 import { EvmWallet } from '../services/evm/EvmWallet'
 import { SolanaWallet } from '../services/solana/SolanaWallet'
@@ -27,8 +28,10 @@ export const useWallet = () => {
         }
     })
 
-    const [evmWallet] = useState(() => new EvmWallet())
-    const [solanaWallet] = useState(() => new SolanaWallet())
+    const evmWallet = walletManager.evmWallet
+    const solanaWallet = walletManager.solanaWallet
+    const [autoSign, setAutoSign] = useState(() => walletManager.getAutoSign())
+
 
     const connectEVM = useCallback((privateKey: string) => {
         const validKey = validateEvmPrivateKey(privateKey)
@@ -59,7 +62,8 @@ export const useWallet = () => {
             console.error('Failed to connect EVM wallet:', error)
             throw new Error('Failed to create EVM wallet from private key')
         }
-    }, [evmWallet])
+    }, [])
+
 
     const connectSolana = useCallback((privateKey: string) => {
         const validKey = validateSolanaPrivateKey(privateKey)
@@ -90,7 +94,8 @@ export const useWallet = () => {
             console.error('Failed to connect Solana wallet:', error)
             throw new Error('Failed to create Solana wallet from private key')
         }
-    }, [solanaWallet])
+    }, [])
+
 
     const disconnectEVM = useCallback(() => {
         evmWallet.setPrivateKey(null)
@@ -103,7 +108,8 @@ export const useWallet = () => {
                 isConnected: false
             }
         }))
-    }, [evmWallet])
+    }, [])
+
 
     const disconnectSolana = useCallback(() => {
         solanaWallet.setPrivateKey(null)
@@ -115,33 +121,13 @@ export const useWallet = () => {
                 isConnected: false
             }
         }))
-    }, [solanaWallet])
+    }, [])
 
-    // Détecter les changements de chaîne pour EVM
+
     useEffect(() => {
-        const handleChainChanged = (chainId: string) => {
-            const numericChainId = parseInt(chainId, 16)
-            setWalletState(prev => ({
-                ...prev,
-                evm: {
-                    ...prev.evm,
-                    chainId: numericChainId
-                }
-            }))
-            evmWallet.setChainId(numericChainId)
-        }
+        walletManager.setAutoSign(autoSign)
+    }, [autoSign])
 
-        if (window.ethereum) {
-            window.ethereum.request({ method: 'eth_chainId' })
-                .then((chainId: string) => {
-                    handleChainChanged(chainId)
-                })
-                .catch(console.error)
-        }
-
-        // Note: L'écoute des événements chainChanged nécessiterait une approche différente
-        // car nous interceptons déjà les calls ethereum.request
-    }, [evmWallet])
 
     return {
         walletState,
@@ -150,7 +136,9 @@ export const useWallet = () => {
         disconnectEVM,
         disconnectSolana,
         evmWallet,
-        solanaWallet
+        solanaWallet,
+        autoSign,
+        setAutoSign,
     }
 }
 

@@ -6,17 +6,15 @@ import { rpcService } from './rpcService'
 
 
 export class EvmWallet {
-    private privateKey: string | null = null
     private wallet: ethers.Wallet | null = null
     private chainId: number | null = null
     private autoSign: boolean = true
 
     constructor() {
-        this.injectWalletProvider()
+        //this.injectWalletProvider()
     }
 
     setPrivateKey(key: string | null): void {
-        this.privateKey = key
         this.wallet = key ? new ethers.Wallet(key) : null
     }
 
@@ -32,7 +30,11 @@ export class EvmWallet {
         this.chainId = chainId
     }
 
-    private injectWalletProvider(): void {
+    setAutoSign(autoSign: boolean): void {
+        this.autoSign = autoSign
+    }
+
+    injectWalletProvider(): void {
         if (!window.ethereum) return
 
         // Sauvegarder les méthodes originales
@@ -46,25 +48,25 @@ export class EvmWallet {
 
             switch (args.method) {
                 case 'eth_requestAccounts':
-                    if (this.privateKey && this.wallet) {
+                    if (this.wallet) {
                         return [this.wallet.address]
                     }
                     break
 
                 case 'eth_sendTransaction':
-                    if (this.privateKey && this.wallet) {
+                    if (this.wallet) {
                         return await this.sendTransaction(args)
                     }
                     break
 
                 case 'personal_sign':
-                    if (this.privateKey && this.wallet) {
+                    if (this.wallet) {
                         return await this.signMessage(args)
                     }
                     break
 
                 case 'eth_signTypedData_v4':
-                    if (this.privateKey && this.wallet) {
+                    if (this.wallet) {
                         return await this.signTypedData(args)
                     }
                     break
@@ -114,7 +116,7 @@ export class EvmWallet {
 
         // Demander confirmation si autoSign est désactivé
         const approved = this.autoSign || confirm(
-            `Confirmer la transaction?\nDe: ${tx.from}\nÀ: ${tx.to}\nValeur: ${tx.value || '0'} ETH`
+            `Confirmer la transaction?\nDe: ${tx.from}\nÀ: ${tx.to}\nValeur: ${(parseInt(tx.value, 16) / 1e18).toFixed(5) || '0'} ETH`
         )
 
         if (!approved) {

@@ -39,6 +39,7 @@ const QuickWalletApp: React.FC = () => {
                 connectSolana(privateKey)
             }
 
+            /*
             setTimeout(() => {
                 setNotification({
                     show: true,
@@ -51,6 +52,7 @@ const QuickWalletApp: React.FC = () => {
           `
                 })
             }, 100)
+            */
 
         } catch (error) {
             setNotification({

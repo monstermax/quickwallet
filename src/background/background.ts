@@ -7,7 +7,7 @@
 chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
         id: "show-wallet",
-        title: "Set QuickWallet React private keys (Alt+W)",
+        title: "QuickWallet settings (Alt+W)",
         contexts: ["all"]
     })
 })

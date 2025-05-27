@@ -6,24 +6,25 @@ import * as Noble from '@noble/ed25519';
 
 
 export class SolanaWallet {
-    private privateKey: string | null = null
     private keypair: Keypair | null = null
     private autoSign: boolean = true
 
     constructor() {
-        this.injectWalletProvider()
+        //this.injectWalletProvider()
     }
 
     setPrivateKey(key: string | null): void {
-        this.privateKey = key
+
         if (key) {
             try {
                 const secretKey = decode(key)
                 this.keypair = Keypair.fromSecretKey(secretKey)
+
             } catch (error) {
                 console.error('Failed to create Solana keypair:', error)
                 this.keypair = null
             }
+
         } else {
             this.keypair = null
         }
@@ -33,7 +34,11 @@ export class SolanaWallet {
         return this.keypair?.publicKey.toBase58() || null
     }
 
-    private injectWalletProvider(): void {
+    setAutoSign(autoSign: boolean): void {
+        this.autoSign = autoSign
+    }
+
+    injectWalletProvider(): void {
         // Intercepter window.solana
         if (window.solana) {
             this.interceptSolanaProvider(window.solana)
@@ -130,12 +135,13 @@ export class SolanaWallet {
         }
 
         try {
-            transaction.sign(this.keypair)
+            // @ts-ignore
+            transaction.sign([this.keypair])
             return transaction
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Solana transaction signing failed:', error)
-            throw new Error(`Transaction signing failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+            throw new Error(`Transaction signing failed: ${error?.message ? error.message : 'Unknown error'}`)
         }
     }
 
@@ -169,9 +175,9 @@ export class SolanaWallet {
                 signature: new Uint8Array(signature),
                 publicKey: this.keypair.publicKey.toBase58()
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Solana message signing failed:', error)
-            throw new Error(`Message signing failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+            throw new Error(`Message signing failed: ${error?.message ? error.message : 'Unknown error'}`)
         }
     }
 }

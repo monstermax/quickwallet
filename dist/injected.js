@@ -7002,554 +7002,6 @@ var m = reactDomExports;
   createRoot = m.createRoot;
   m.hydrateRoot;
 }
-const WalletDialog = ({
-  isOpen,
-  walletState,
-  onClose,
-  onConnect,
-  onDisconnect
-}) => {
-  const [evmKey, setEvmKey] = reactExports.useState("");
-  const [solanaKey, setSolanaKey] = reactExports.useState("");
-  const [evmLoading, setEvmLoading] = reactExports.useState(false);
-  const [solanaLoading, setSolanaLoading] = reactExports.useState(false);
-  const [error, setError] = reactExports.useState(null);
-  reactExports.useEffect(() => {
-    if (isOpen) {
-      setEvmKey("");
-      setSolanaKey("");
-      setError(null);
-      setEvmLoading(false);
-      setSolanaLoading(false);
-    }
-  }, [isOpen]);
-  if (!isOpen) return null;
-  const handleEvmConnect = async () => {
-    if (!evmKey) return;
-    setEvmLoading(true);
-    setError(null);
-    try {
-      await onConnect("evm", evmKey);
-      setEvmKey("");
-    } catch (error2) {
-      console.error("EVM connection failed:", error2);
-      setError(error2 instanceof Error ? error2.message : "EVM connection failed");
-    } finally {
-      setEvmLoading(false);
-    }
-  };
-  const handleSolanaConnect = async () => {
-    if (!solanaKey) return;
-    setSolanaLoading(true);
-    setError(null);
-    try {
-      await onConnect("solana", solanaKey);
-      setSolanaKey("");
-    } catch (error2) {
-      console.error("Solana connection failed:", error2);
-      setError(error2 instanceof Error ? error2.message : "Solana connection failed");
-    } finally {
-      setSolanaLoading(false);
-    }
-  };
-  const handleDisconnect = (chain) => {
-    onDisconnect(chain);
-    setError(null);
-  };
-  const truncateAddress = (address, startChars = 6, endChars = 4) => {
-    if (address.length <= startChars + endChars) return address;
-    return `${address.slice(0, startChars)}...${address.slice(-endChars)}`;
-  };
-  const isAnyLoading = evmLoading || solanaLoading;
-  return /* @__PURE__ */ jsxRuntimeExports.jsx(
-    "div",
-    {
-      style: styles.overlay,
-      onClick: (e) => e.target === e.currentTarget && onClose(),
-      children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.modal, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.header, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.title, children: "QuickWallet" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.subtitle, children: "React Edition" })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              style: styles.closeButton,
-              onClick: onClose,
-              disabled: isAnyLoading,
-              children: "×"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.body, children: [
-          error && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.error, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Error:" }),
-            " ",
-            error
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.section, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: styles.label, children: "🦊 EVM Networks (Ethereum, Polygon, BSC, Arbitrum...)" }),
-            walletState.evm.isConnected ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.connectedCard, children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.badge, children: "🟢 Connected" }),
-                  walletState.evm.chainId && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { ...styles.badge, backgroundColor: "#6c757d", color: "#fff" }, children: [
-                    "Chain ",
-                    walletState.evm.chainId
-                  ] })
-                ] }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: styles.address, children: truncateAddress(walletState.evm.address || "") })
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  type: "button",
-                  style: { ...styles.button, ...styles.dangerButton },
-                  onClick: () => handleDisconnect("evm"),
-                  disabled: isAnyLoading,
-                  children: "Disconnect"
-                }
-              )
-            ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.inputGroup, children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.inputIcon, children: "🔑" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "input",
-                {
-                  style: styles.input,
-                  type: "password",
-                  placeholder: "Enter your private key (0x123abc...)",
-                  value: evmKey,
-                  onChange: (e) => setEvmKey(e.target.value),
-                  autoComplete: "off",
-                  disabled: isAnyLoading,
-                  onKeyDown: (e) => {
-                    if (e.key === "Enter" && evmKey) {
-                      e.preventDefault();
-                      handleEvmConnect();
-                    }
-                  }
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  type: "button",
-                  style: {
-                    ...styles.inputButton,
-                    ...(!evmKey || evmLoading) && styles.disabledButton
-                  },
-                  onClick: handleEvmConnect,
-                  disabled: !evmKey || isAnyLoading,
-                  children: evmLoading ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.loadingContent, children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.spinner }) }) : "Connect"
-                }
-              )
-            ] })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.section, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: styles.label, children: "👾 Solana Network" }),
-            walletState.solana.isConnected ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.connectedCard, children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.badge, children: "🟢 Connected" }) }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: styles.address, children: truncateAddress(walletState.solana.address || "") })
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  type: "button",
-                  style: { ...styles.button, ...styles.dangerButton },
-                  onClick: () => handleDisconnect("solana"),
-                  disabled: isAnyLoading,
-                  children: "Disconnect"
-                }
-              )
-            ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.inputGroup, children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.inputIcon, children: "🔑" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "input",
-                {
-                  style: styles.input,
-                  type: "password",
-                  placeholder: "Enter your private key (Base58 format)",
-                  value: solanaKey,
-                  onChange: (e) => setSolanaKey(e.target.value),
-                  autoComplete: "off",
-                  disabled: isAnyLoading,
-                  onKeyDown: (e) => {
-                    if (e.key === "Enter" && solanaKey) {
-                      e.preventDefault();
-                      handleSolanaConnect();
-                    }
-                  }
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  type: "button",
-                  style: {
-                    ...styles.inputButton,
-                    ...(!solanaKey || solanaLoading) && styles.disabledButton
-                  },
-                  onClick: handleSolanaConnect,
-                  disabled: !solanaKey || isAnyLoading,
-                  children: solanaLoading ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.loadingContent, children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.spinner }) }) : "Connect"
-                }
-              )
-            ] })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.warning, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "⚠️ Development Tool:" }),
-            " Use only with testnet accounts. QuickWallet automatically signs transactions without confirmation prompts."
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: styles.footer, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            type: "button",
-            style: { ...styles.button, ...styles.secondaryButton },
-            onClick: onClose,
-            disabled: isAnyLoading,
-            children: "Close"
-          }
-        ) })
-      ] })
-    }
-  );
-};
-const styles = {
-  overlay: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 999999,
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-  },
-  modal: {
-    backgroundColor: "#ffffff",
-    borderRadius: "8px",
-    boxShadow: "0 10px 30px rgba(0, 0, 0, 0.3)",
-    width: "500px",
-    maxWidth: "90vw",
-    maxHeight: "90vh",
-    overflow: "hidden",
-    border: "2px solid #65F152"
-  },
-  header: {
-    padding: "20px 24px",
-    borderBottom: "2px solid #65F152",
-    background: "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center"
-  },
-  title: {
-    margin: 0,
-    fontSize: "20px",
-    fontWeight: "bold",
-    color: "#65F152",
-    textShadow: "1px 1px 2px black"
-  },
-  subtitle: {
-    color: "#6c757d",
-    fontSize: "14px",
-    marginLeft: "8px"
-  },
-  closeButton: {
-    background: "none",
-    border: "none",
-    fontSize: "24px",
-    cursor: "pointer",
-    color: "#6c757d",
-    padding: "4px"
-  },
-  body: {
-    padding: "24px"
-  },
-  section: {
-    marginBottom: "24px"
-  },
-  label: {
-    display: "block",
-    marginBottom: "8px",
-    fontWeight: "600",
-    fontSize: "14px",
-    color: "#374151"
-  },
-  connectedCard: {
-    border: "1px solid #65F152",
-    borderRadius: "6px",
-    padding: "16px",
-    backgroundColor: "#f0f9f0",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center"
-  },
-  badge: {
-    backgroundColor: "#65F152",
-    color: "#000",
-    padding: "4px 8px",
-    borderRadius: "4px",
-    fontSize: "12px",
-    fontWeight: "bold",
-    marginRight: "8px"
-  },
-  address: {
-    fontFamily: "monospace",
-    fontSize: "12px",
-    color: "#1e40af",
-    backgroundColor: "#eff6ff",
-    padding: "4px 8px",
-    borderRadius: "4px",
-    wordBreak: "break-all"
-  },
-  inputGroup: {
-    display: "flex",
-    border: "1px solid #d1d5db",
-    borderRadius: "6px",
-    overflow: "hidden"
-  },
-  inputIcon: {
-    padding: "12px",
-    backgroundColor: "#f9fafb",
-    borderRight: "1px solid #d1d5db",
-    fontSize: "16px"
-  },
-  input: {
-    flex: 1,
-    padding: "12px",
-    border: "none",
-    outline: "none",
-    fontSize: "14px",
-    fontFamily: "inherit",
-    color: "#374151",
-    backgroundColor: "#ffffff"
-  },
-  inputButton: {
-    padding: "8px 16px",
-    border: "none",
-    borderLeft: "1px solid #d1d5db",
-    backgroundColor: "#65F152",
-    color: "#000",
-    fontSize: "14px",
-    fontWeight: "600",
-    cursor: "pointer",
-    transition: "all 0.2s",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: "80px",
-    whiteSpace: "nowrap"
-  },
-  button: {
-    padding: "8px 16px",
-    border: "none",
-    borderRadius: "4px",
-    fontSize: "14px",
-    fontWeight: "600",
-    cursor: "pointer",
-    transition: "all 0.2s",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  secondaryButton: {
-    backgroundColor: "#f3f4f6",
-    color: "#374151"
-  },
-  dangerButton: {
-    backgroundColor: "#fee2e2",
-    color: "#b91c1c"
-  },
-  disabledButton: {
-    opacity: 0.6,
-    cursor: "not-allowed"
-  },
-  loadingContent: {
-    display: "flex",
-    alignItems: "center",
-    gap: "6px"
-  },
-  spinner: {
-    width: "14px",
-    height: "14px",
-    border: "2px solid transparent",
-    borderTop: "2px solid currentColor",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite"
-  },
-  footer: {
-    padding: "16px 24px",
-    backgroundColor: "#f8f9fa",
-    borderTop: "1px solid #e5e7eb",
-    display: "flex",
-    justifyContent: "flex-end"
-  },
-  warning: {
-    backgroundColor: "#fffbeb",
-    border: "1px solid #fbbf24",
-    borderLeft: "4px solid #f59e0b",
-    borderRadius: "4px",
-    padding: "12px",
-    fontSize: "12px",
-    color: "#92400e"
-  },
-  error: {
-    backgroundColor: "#fef2f2",
-    border: "1px solid #f87171",
-    borderRadius: "4px",
-    padding: "12px",
-    fontSize: "14px",
-    color: "#b91c1c",
-    marginBottom: "16px"
-  }
-};
-const spinnerCSS = `
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-`;
-if (!document.getElementById("quickwallet-spinner-css")) {
-  const styleElement = document.createElement("style");
-  styleElement.id = "quickwallet-spinner-css";
-  styleElement.textContent = spinnerCSS;
-  document.head.appendChild(styleElement);
-}
-const notificationStyles = {
-  container: {
-    position: "fixed",
-    bottom: "20px",
-    right: "20px",
-    zIndex: 999999,
-    minWidth: "300px",
-    maxWidth: "400px",
-    borderRadius: "8px",
-    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    transition: "all 0.3s ease-in-out"
-  },
-  content: {
-    padding: "16px",
-    borderRadius: "8px",
-    border: "1px solid",
-    display: "flex",
-    alignItems: "flex-start",
-    gap: "12px"
-  },
-  icon: {
-    fontSize: "20px",
-    marginTop: "2px"
-  },
-  message: {
-    flex: 1,
-    fontSize: "14px",
-    lineHeight: "1.4"
-  },
-  closeButton: {
-    background: "none",
-    border: "none",
-    fontSize: "18px",
-    cursor: "pointer",
-    padding: "0",
-    marginLeft: "8px",
-    opacity: 0.7
-  }
-};
-const Notification = ({
-  message,
-  type: type2 = "info",
-  show,
-  onClose
-}) => {
-  const [isVisible, setIsVisible] = reactExports.useState(false);
-  reactExports.useEffect(() => {
-    if (show) {
-      setIsVisible(true);
-      const timer = setTimeout(() => {
-        setIsVisible(false);
-        setTimeout(onClose, 300);
-      }, 3e3);
-      return () => clearTimeout(timer);
-    } else {
-      setIsVisible(false);
-    }
-  }, [show, onClose]);
-  if (!show) return null;
-  const getStyles = () => {
-    const baseStyles = {
-      ...notificationStyles.content,
-      transform: isVisible ? "translateY(0)" : "translateY(100%)",
-      opacity: isVisible ? 1 : 0
-    };
-    switch (type2) {
-      case "success":
-        return {
-          ...baseStyles,
-          backgroundColor: "#f0f9f0",
-          borderColor: "#65F152",
-          color: "#2d5a2d"
-        };
-      case "warning":
-        return {
-          ...baseStyles,
-          backgroundColor: "#fffbeb",
-          borderColor: "#fbbf24",
-          color: "#92400e"
-        };
-      case "error":
-        return {
-          ...baseStyles,
-          backgroundColor: "#fef2f2",
-          borderColor: "#f87171",
-          color: "#b91c1c"
-        };
-      default:
-        return {
-          ...baseStyles,
-          backgroundColor: "#f0f9ff",
-          borderColor: "#3b82f6",
-          color: "#1e40af"
-        };
-    }
-  };
-  const getIcon = () => {
-    switch (type2) {
-      case "success":
-        return "✅";
-      case "warning":
-        return "⚠️";
-      case "error":
-        return "❌";
-      default:
-        return "ℹ️";
-    }
-  };
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: notificationStyles.container, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: getStyles(), children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: notificationStyles.icon, children: getIcon() }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      "div",
-      {
-        style: notificationStyles.message,
-        dangerouslySetInnerHTML: { __html: message }
-      }
-    ),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      "button",
-      {
-        style: notificationStyles.closeButton,
-        onClick: onClose,
-        children: "×"
-      }
-    )
-  ] }) });
-};
 const version$1 = "6.14.3";
 async function resolveProperties(value) {
   const keys = Object.keys(value);
@@ -27367,46 +26819,12 @@ var src = base;
 const basex = src;
 const ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 var bs58 = basex(ALPHABET);
-function validateEvmPrivateKey(key) {
-  if (!key) return null;
-  key = key.replace(/\s/g, "").toLowerCase();
-  if (!key.startsWith("0x")) {
-    key = "0x" + key;
-  }
-  if (!/^0x[a-f0-9]{64}$/i.test(key)) {
-    console.warn("Invalid EVM private key format");
-    return null;
-  }
-  const dangerousKeys = [
-    "0x1111111111111111111111111111111111111111111111111111111111111111",
-    "0x0000000000000000000000000000000000000000000000000000000000000001"
-  ];
-  if (dangerousKeys.includes(key)) {
-    console.warn("Dangerous/example private key detected");
-    return null;
-  }
-  return key;
-}
-function validateSolanaPrivateKey(key) {
-  if (!key) return null;
-  key = key.replace(/\s/g, "");
-  if (!/^[1-9A-HJ-NP-Za-km-z]{87,88}$/.test(key)) {
-    console.warn("Invalid Solana private key format");
-    return null;
-  }
-  try {
-    return key;
-  } catch (e) {
-    console.warn("Invalid Solana private key:", e);
-    return null;
-  }
-}
-var __defProp$2 = Object.defineProperty;
-var __defNormalProp$2 = (obj, key, value) => key in obj ? __defProp$2(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-var __publicField$2 = (obj, key, value) => __defNormalProp$2(obj, key + "", value);
+var __defProp$3 = Object.defineProperty;
+var __defNormalProp$3 = (obj, key, value) => key in obj ? __defProp$3(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __publicField$3 = (obj, key, value) => __defNormalProp$3(obj, key + "", value);
 class RpcService {
   constructor() {
-    __publicField$2(this, "rpcUrls", {
+    __publicField$3(this, "rpcUrls", {
       // Mainnets
       1: "https://0xrpc.io/eth",
       // Ethereum Mainnet
@@ -27530,19 +26948,16 @@ class RpcService {
   }
 }
 const rpcService = new RpcService();
-var __defProp$1 = Object.defineProperty;
-var __defNormalProp$1 = (obj, key, value) => key in obj ? __defProp$1(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-var __publicField$1 = (obj, key, value) => __defNormalProp$1(obj, typeof key !== "symbol" ? key + "" : key, value);
+var __defProp$2 = Object.defineProperty;
+var __defNormalProp$2 = (obj, key, value) => key in obj ? __defProp$2(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __publicField$2 = (obj, key, value) => __defNormalProp$2(obj, typeof key !== "symbol" ? key + "" : key, value);
 class EvmWallet {
   constructor() {
-    __publicField$1(this, "privateKey", null);
-    __publicField$1(this, "wallet", null);
-    __publicField$1(this, "chainId", null);
-    __publicField$1(this, "autoSign", true);
-    this.injectWalletProvider();
+    __publicField$2(this, "wallet", null);
+    __publicField$2(this, "chainId", null);
+    __publicField$2(this, "autoSign", true);
   }
   setPrivateKey(key) {
-    this.privateKey = key;
     this.wallet = key ? new Wallet(key) : null;
   }
   getAddress() {
@@ -27554,6 +26969,9 @@ class EvmWallet {
   setChainId(chainId) {
     this.chainId = chainId;
   }
+  setAutoSign(autoSign) {
+    this.autoSign = autoSign;
+  }
   injectWalletProvider() {
     if (!window.ethereum) return;
     const originalRequest = window.ethereum.request;
@@ -27563,22 +26981,22 @@ class EvmWallet {
       console.log("ethereum.request intercepted:", args);
       switch (args.method) {
         case "eth_requestAccounts":
-          if (this.privateKey && this.wallet) {
+          if (this.wallet) {
             return [this.wallet.address];
           }
           break;
         case "eth_sendTransaction":
-          if (this.privateKey && this.wallet) {
+          if (this.wallet) {
             return await this.sendTransaction(args);
           }
           break;
         case "personal_sign":
-          if (this.privateKey && this.wallet) {
+          if (this.wallet) {
             return await this.signMessage(args);
           }
           break;
         case "eth_signTypedData_v4":
-          if (this.privateKey && this.wallet) {
+          if (this.wallet) {
             return await this.signTypedData(args);
           }
           break;
@@ -27613,7 +27031,7 @@ class EvmWallet {
       `Confirmer la transaction?
 De: ${tx.from}
 À: ${tx.to}
-Valeur: ${tx.value || "0"} ETH`
+Valeur: ${(parseInt(tx.value, 16) / 1e18).toFixed(5) || "0"} ETH`
     );
     if (!approved) {
       throw new Error("User rejected the transaction");
@@ -28068,18 +27486,15 @@ const wNAF = (n2) => {
   }
   return { p: p2, f: f2 };
 };
-var __defProp2 = Object.defineProperty;
-var __defNormalProp2 = (obj, key, value) => key in obj ? __defProp2(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-var __publicField2 = (obj, key, value) => __defNormalProp2(obj, typeof key !== "symbol" ? key + "" : key, value);
+var __defProp$1 = Object.defineProperty;
+var __defNormalProp$1 = (obj, key, value) => key in obj ? __defProp$1(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __publicField$1 = (obj, key, value) => __defNormalProp$1(obj, typeof key !== "symbol" ? key + "" : key, value);
 class SolanaWallet {
   constructor() {
-    __publicField2(this, "privateKey", null);
-    __publicField2(this, "keypair", null);
-    __publicField2(this, "autoSign", true);
-    this.injectWalletProvider();
+    __publicField$1(this, "keypair", null);
+    __publicField$1(this, "autoSign", true);
   }
   setPrivateKey(key) {
-    this.privateKey = key;
     if (key) {
       try {
         const secretKey = bs58.decode(key);
@@ -28094,6 +27509,9 @@ class SolanaWallet {
   }
   getAddress() {
     return this.keypair?.publicKey.toBase58() || null;
+  }
+  setAutoSign(autoSign) {
+    this.autoSign = autoSign;
   }
   injectWalletProvider() {
     if (window.solana) {
@@ -28164,11 +27582,11 @@ class SolanaWallet {
       throw new Error("User rejected the transaction");
     }
     try {
-      transaction.sign(this.keypair);
+      transaction.sign([this.keypair]);
       return transaction;
     } catch (error) {
       console.error("Solana transaction signing failed:", error);
-      throw new Error(`Transaction signing failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+      throw new Error(`Transaction signing failed: ${error?.message ? error.message : "Unknown error"}`);
     }
   }
   async signMessage(message, encoding2) {
@@ -28195,8 +27613,75 @@ class SolanaWallet {
       };
     } catch (error) {
       console.error("Solana message signing failed:", error);
-      throw new Error(`Message signing failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+      throw new Error(`Message signing failed: ${error?.message ? error.message : "Unknown error"}`);
     }
+  }
+}
+var __defProp2 = Object.defineProperty;
+var __defNormalProp2 = (obj, key, value) => key in obj ? __defProp2(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __publicField2 = (obj, key, value) => __defNormalProp2(obj, typeof key !== "symbol" ? key + "" : key, value);
+const _WalletManager = class _WalletManager2 {
+  constructor() {
+    __publicField2(this, "evmWallet");
+    __publicField2(this, "solanaWallet");
+    __publicField2(this, "autoSign", true);
+    this.evmWallet = new EvmWallet();
+    this.solanaWallet = new SolanaWallet();
+    setTimeout(() => {
+      this.evmWallet.injectWalletProvider();
+      this.solanaWallet.injectWalletProvider();
+    }, 100);
+  }
+  static getInstance() {
+    if (!_WalletManager2.instance) {
+      _WalletManager2.instance = new _WalletManager2();
+    }
+    return _WalletManager2.instance;
+  }
+  setAutoSign(enabled) {
+    this.autoSign = enabled;
+    this.evmWallet.setAutoSign(enabled);
+    this.solanaWallet.setAutoSign(enabled);
+  }
+  getAutoSign() {
+    return this.autoSign;
+  }
+};
+__publicField2(_WalletManager, "instance");
+let WalletManager = _WalletManager;
+const walletManager = WalletManager.getInstance();
+function validateEvmPrivateKey(key) {
+  if (!key) return null;
+  key = key.replace(/\s/g, "").toLowerCase();
+  if (!key.startsWith("0x")) {
+    key = "0x" + key;
+  }
+  if (!/^0x[a-f0-9]{64}$/i.test(key)) {
+    console.warn("Invalid EVM private key format");
+    return null;
+  }
+  const dangerousKeys = [
+    "0x1111111111111111111111111111111111111111111111111111111111111111",
+    "0x0000000000000000000000000000000000000000000000000000000000000001"
+  ];
+  if (dangerousKeys.includes(key)) {
+    console.warn("Dangerous/example private key detected");
+    return null;
+  }
+  return key;
+}
+function validateSolanaPrivateKey(key) {
+  if (!key) return null;
+  key = key.replace(/\s/g, "");
+  if (!/^[1-9A-HJ-NP-Za-km-z]{87,88}$/.test(key)) {
+    console.warn("Invalid Solana private key format");
+    return null;
+  }
+  try {
+    return key;
+  } catch (e) {
+    console.warn("Invalid Solana private key:", e);
+    return null;
   }
 }
 const useWallet = () => {
@@ -28213,8 +27698,9 @@ const useWallet = () => {
       isConnected: false
     }
   });
-  const [evmWallet] = reactExports.useState(() => new EvmWallet());
-  const [solanaWallet] = reactExports.useState(() => new SolanaWallet());
+  const evmWallet = walletManager.evmWallet;
+  const solanaWallet = walletManager.solanaWallet;
+  const [autoSign, setAutoSign] = reactExports.useState(() => walletManager.getAutoSign());
   const connectEVM = reactExports.useCallback((privateKey) => {
     const validKey = validateEvmPrivateKey(privateKey);
     if (!validKey) {
@@ -28237,7 +27723,7 @@ const useWallet = () => {
       console.error("Failed to connect EVM wallet:", error);
       throw new Error("Failed to create EVM wallet from private key");
     }
-  }, [evmWallet]);
+  }, []);
   const connectSolana = reactExports.useCallback((privateKey) => {
     const validKey = validateSolanaPrivateKey(privateKey);
     if (!validKey) {
@@ -28260,7 +27746,7 @@ const useWallet = () => {
       console.error("Failed to connect Solana wallet:", error);
       throw new Error("Failed to create Solana wallet from private key");
     }
-  }, [solanaWallet]);
+  }, []);
   const disconnectEVM = reactExports.useCallback(() => {
     evmWallet.setPrivateKey(null);
     setWalletState((prev) => ({
@@ -28272,7 +27758,7 @@ const useWallet = () => {
         isConnected: false
       }
     }));
-  }, [evmWallet]);
+  }, []);
   const disconnectSolana = reactExports.useCallback(() => {
     solanaWallet.setPrivateKey(null);
     setWalletState((prev) => ({
@@ -28283,25 +27769,10 @@ const useWallet = () => {
         isConnected: false
       }
     }));
-  }, [solanaWallet]);
+  }, []);
   reactExports.useEffect(() => {
-    const handleChainChanged = (chainId) => {
-      const numericChainId = parseInt(chainId, 16);
-      setWalletState((prev) => ({
-        ...prev,
-        evm: {
-          ...prev.evm,
-          chainId: numericChainId
-        }
-      }));
-      evmWallet.setChainId(numericChainId);
-    };
-    if (window.ethereum) {
-      window.ethereum.request({ method: "eth_chainId" }).then((chainId) => {
-        handleChainChanged(chainId);
-      }).catch(console.error);
-    }
-  }, [evmWallet]);
+    walletManager.setAutoSign(autoSign);
+  }, [autoSign]);
   return {
     walletState,
     connectEVM,
@@ -28309,8 +27780,666 @@ const useWallet = () => {
     disconnectEVM,
     disconnectSolana,
     evmWallet,
-    solanaWallet
+    solanaWallet,
+    autoSign,
+    setAutoSign
   };
+};
+const WalletDialog = ({
+  isOpen,
+  walletState,
+  onClose,
+  onConnect,
+  onDisconnect
+}) => {
+  const [evmKey, setEvmKey] = reactExports.useState("");
+  const [solanaKey, setSolanaKey] = reactExports.useState("");
+  const [evmLoading, setEvmLoading] = reactExports.useState(false);
+  const [solanaLoading, setSolanaLoading] = reactExports.useState(false);
+  const [error, setError] = reactExports.useState(null);
+  const [activeTab, setActiveTab] = reactExports.useState("wallets");
+  const { autoSign, setAutoSign } = useWallet();
+  reactExports.useEffect(() => {
+    if (isOpen) {
+      setEvmKey("");
+      setSolanaKey("");
+      setError(null);
+      setEvmLoading(false);
+      setSolanaLoading(false);
+    }
+  }, [isOpen]);
+  if (!isOpen) return null;
+  const handleEvmConnect = async () => {
+    if (!evmKey) return;
+    setEvmLoading(true);
+    setError(null);
+    try {
+      await onConnect("evm", evmKey);
+      setEvmKey("");
+    } catch (error2) {
+      console.error("EVM connection failed:", error2);
+      setError(error2 instanceof Error ? error2.message : "EVM connection failed");
+    } finally {
+      setEvmLoading(false);
+    }
+  };
+  const handleSolanaConnect = async () => {
+    if (!solanaKey) return;
+    setSolanaLoading(true);
+    setError(null);
+    try {
+      await onConnect("solana", solanaKey);
+      setSolanaKey("");
+    } catch (error2) {
+      console.error("Solana connection failed:", error2);
+      setError(error2 instanceof Error ? error2.message : "Solana connection failed");
+    } finally {
+      setSolanaLoading(false);
+    }
+  };
+  const handleDisconnect = (chain) => {
+    onDisconnect(chain);
+    setError(null);
+  };
+  const truncateAddress = (address, startChars = 6, endChars = 4) => {
+    if (address.length <= startChars + endChars) return address;
+    return `${address.slice(0, startChars)}...${address.slice(-endChars)}`;
+  };
+  const isAnyLoading = evmLoading || solanaLoading;
+  const tabStyles = {
+    tabContainer: {
+      display: "flex",
+      borderBottom: "1px solid #e5e7eb",
+      backgroundColor: "#f8f9fa"
+    },
+    tab: {
+      flex: 1,
+      padding: "12px 16px",
+      border: "none",
+      backgroundColor: "transparent",
+      cursor: "pointer",
+      fontSize: "14px",
+      fontWeight: "500",
+      transition: "all 0.2s"
+    },
+    activeTab: {
+      backgroundColor: "#ffffff",
+      borderBottom: "2px solid #65F152",
+      color: "#65F152"
+    },
+    inactiveTab: {
+      color: "#6c757d"
+    },
+    settingsContainer: {
+      padding: "24px"
+    },
+    settingRow: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: "16px 0",
+      borderBottom: "1px solid #e5e7eb"
+    },
+    settingLabel: {
+      fontSize: "14px",
+      fontWeight: "500",
+      color: "#374151"
+    },
+    settingDescription: {
+      fontSize: "12px",
+      color: "#6c757d",
+      marginTop: "4px"
+    },
+    toggle: {
+      width: "48px",
+      height: "24px",
+      backgroundColor: autoSign ? "#65F152" : "#d1d5db",
+      borderRadius: "12px",
+      position: "relative",
+      cursor: "pointer",
+      transition: "all 0.2s"
+    },
+    toggleKnob: {
+      width: "20px",
+      height: "20px",
+      backgroundColor: "#ffffff",
+      borderRadius: "50%",
+      position: "absolute",
+      top: "2px",
+      left: autoSign ? "26px" : "2px",
+      transition: "all 0.2s",
+      boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+    }
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    "div",
+    {
+      style: styles.overlay,
+      onClick: (e) => e.target === e.currentTarget && onClose(),
+      children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.modal, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.header, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.title, children: "QuickWallet" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.subtitle, children: "React Edition" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              style: styles.closeButton,
+              onClick: onClose,
+              disabled: isAnyLoading,
+              children: "×"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: tabStyles.tabContainer, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              style: {
+                ...tabStyles.tab,
+                ...activeTab === "wallets" ? tabStyles.activeTab : tabStyles.inactiveTab
+              },
+              onClick: () => setActiveTab("wallets"),
+              children: "🔗 Wallets"
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              style: {
+                ...tabStyles.tab,
+                ...activeTab === "settings" ? tabStyles.activeTab : tabStyles.inactiveTab
+              },
+              onClick: () => setActiveTab("settings"),
+              children: "⚙️ Settings"
+            }
+          )
+        ] }),
+        activeTab === "wallets" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.body, children: [
+          error && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.error, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Error:" }),
+            " ",
+            error
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.section, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: styles.label, children: "🦊 EVM Networks (Ethereum, Polygon, BSC, Arbitrum...)" }),
+            walletState.evm.isConnected ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.connectedCard, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.badge, children: "🟢 Connected" }),
+                  walletState.evm.chainId && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { ...styles.badge, backgroundColor: "#6c757d", color: "#fff" }, children: [
+                    "Chain ",
+                    walletState.evm.chainId
+                  ] })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: styles.address, children: truncateAddress(walletState.evm.address || "") })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  type: "button",
+                  style: { ...styles.button, ...styles.dangerButton },
+                  onClick: () => handleDisconnect("evm"),
+                  disabled: isAnyLoading,
+                  children: "Disconnect"
+                }
+              )
+            ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.inputGroup, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.inputIcon, children: "🔑" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  style: styles.input,
+                  type: "password",
+                  placeholder: "Enter your private key (0x123abc...)",
+                  value: evmKey,
+                  onChange: (e) => setEvmKey(e.target.value),
+                  autoComplete: "off",
+                  disabled: isAnyLoading,
+                  onKeyDown: (e) => {
+                    if (e.key === "Enter" && evmKey) {
+                      e.preventDefault();
+                      handleEvmConnect();
+                    }
+                  }
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  type: "button",
+                  style: {
+                    ...styles.inputButton,
+                    ...(!evmKey || evmLoading) && styles.disabledButton
+                  },
+                  onClick: handleEvmConnect,
+                  disabled: !evmKey || isAnyLoading,
+                  children: evmLoading ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.loadingContent, children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.spinner }) }) : "Connect"
+                }
+              )
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.section, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: styles.label, children: "👾 Solana Network" }),
+            walletState.solana.isConnected ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.connectedCard, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.badge, children: "🟢 Connected" }) }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: styles.address, children: truncateAddress(walletState.solana.address || "") })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  type: "button",
+                  style: { ...styles.button, ...styles.dangerButton },
+                  onClick: () => handleDisconnect("solana"),
+                  disabled: isAnyLoading,
+                  children: "Disconnect"
+                }
+              )
+            ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.inputGroup, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.inputIcon, children: "🔑" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  style: styles.input,
+                  type: "password",
+                  placeholder: "Enter your private key (Base58 format)",
+                  value: solanaKey,
+                  onChange: (e) => setSolanaKey(e.target.value),
+                  autoComplete: "off",
+                  disabled: isAnyLoading,
+                  onKeyDown: (e) => {
+                    if (e.key === "Enter" && solanaKey) {
+                      e.preventDefault();
+                      handleSolanaConnect();
+                    }
+                  }
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  type: "button",
+                  style: {
+                    ...styles.inputButton,
+                    ...(!solanaKey || solanaLoading) && styles.disabledButton
+                  },
+                  onClick: handleSolanaConnect,
+                  disabled: !solanaKey || isAnyLoading,
+                  children: solanaLoading ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.loadingContent, children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: styles.spinner }) }) : "Connect"
+                }
+              )
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.warning, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "⚠️ Development Tool:" }),
+            " Use only with testnet accounts. QuickWallet automatically signs transactions without confirmation prompts.",
+            /* @__PURE__ */ jsxRuntimeExports.jsx("br", {}),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("br", {}),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "🔑 Private Key Note:" }),
+            " The private key must match the account connected in your wallet (MetaMask/Phantom)."
+          ] })
+        ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.settingsContainer, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: tabStyles.settingRow, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.settingLabel, children: "Auto Sign Transactions" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.settingDescription, children: "Automatically sign transactions without confirmation prompts (EVM & Solana)" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "div",
+            {
+              style: tabStyles.toggle,
+              onClick: () => setAutoSign(!autoSign),
+              children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.toggleKnob })
+            }
+          )
+        ] }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: styles.footer, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            type: "button",
+            style: { ...styles.button, ...styles.secondaryButton },
+            onClick: onClose,
+            disabled: isAnyLoading,
+            children: "Close"
+          }
+        ) })
+      ] })
+    }
+  );
+};
+const styles = {
+  overlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 999999,
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+  },
+  modal: {
+    backgroundColor: "#ffffff",
+    borderRadius: "8px",
+    boxShadow: "0 10px 30px rgba(0, 0, 0, 0.3)",
+    width: "500px",
+    maxWidth: "90vw",
+    maxHeight: "90vh",
+    overflow: "hidden",
+    border: "2px solid #65F152"
+  },
+  header: {
+    padding: "20px 24px",
+    borderBottom: "2px solid #65F152",
+    background: "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+  title: {
+    margin: 0,
+    fontSize: "20px",
+    fontWeight: "bold",
+    color: "#65F152",
+    textShadow: "1px 1px 2px black"
+  },
+  subtitle: {
+    color: "#6c757d",
+    fontSize: "14px",
+    marginLeft: "8px"
+  },
+  closeButton: {
+    background: "none",
+    border: "none",
+    fontSize: "24px",
+    cursor: "pointer",
+    color: "#6c757d",
+    padding: "4px"
+  },
+  body: {
+    padding: "24px"
+  },
+  section: {
+    marginBottom: "24px"
+  },
+  label: {
+    display: "block",
+    marginBottom: "8px",
+    fontWeight: "600",
+    fontSize: "14px",
+    color: "#374151"
+  },
+  connectedCard: {
+    border: "1px solid #65F152",
+    borderRadius: "6px",
+    padding: "16px",
+    backgroundColor: "#f0f9f0",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+  badge: {
+    backgroundColor: "#65F152",
+    color: "#000",
+    padding: "4px 8px",
+    borderRadius: "4px",
+    fontSize: "12px",
+    fontWeight: "bold",
+    marginRight: "8px"
+  },
+  address: {
+    fontFamily: "monospace",
+    fontSize: "12px",
+    color: "#1e40af",
+    backgroundColor: "#eff6ff",
+    padding: "4px 8px",
+    borderRadius: "4px",
+    wordBreak: "break-all"
+  },
+  inputGroup: {
+    display: "flex",
+    border: "1px solid #d1d5db",
+    borderRadius: "6px",
+    overflow: "hidden"
+  },
+  inputIcon: {
+    padding: "12px",
+    backgroundColor: "#f9fafb",
+    borderRight: "1px solid #d1d5db",
+    fontSize: "16px"
+  },
+  input: {
+    flex: 1,
+    padding: "12px",
+    border: "none",
+    outline: "none",
+    fontSize: "14px",
+    fontFamily: "inherit",
+    color: "#374151",
+    backgroundColor: "#ffffff"
+  },
+  inputButton: {
+    padding: "8px 16px",
+    border: "none",
+    borderLeft: "1px solid #d1d5db",
+    backgroundColor: "#65F152",
+    color: "#000",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: "pointer",
+    transition: "all 0.2s",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: "80px",
+    whiteSpace: "nowrap"
+  },
+  button: {
+    padding: "8px 16px",
+    border: "none",
+    borderRadius: "4px",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: "pointer",
+    transition: "all 0.2s",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  secondaryButton: {
+    backgroundColor: "#f3f4f6",
+    color: "#374151"
+  },
+  dangerButton: {
+    backgroundColor: "#fee2e2",
+    color: "#b91c1c"
+  },
+  disabledButton: {
+    opacity: 0.6,
+    cursor: "not-allowed"
+  },
+  loadingContent: {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px"
+  },
+  spinner: {
+    width: "14px",
+    height: "14px",
+    border: "2px solid transparent",
+    borderTop: "2px solid currentColor",
+    borderRadius: "50%",
+    animation: "spin 1s linear infinite"
+  },
+  footer: {
+    padding: "16px 24px",
+    backgroundColor: "#f8f9fa",
+    borderTop: "1px solid #e5e7eb",
+    display: "flex",
+    justifyContent: "flex-end"
+  },
+  warning: {
+    backgroundColor: "#fffbeb",
+    border: "1px solid #fbbf24",
+    borderLeft: "4px solid #f59e0b",
+    borderRadius: "4px",
+    padding: "12px",
+    fontSize: "12px",
+    color: "#92400e"
+  },
+  error: {
+    backgroundColor: "#fef2f2",
+    border: "1px solid #f87171",
+    borderRadius: "4px",
+    padding: "12px",
+    fontSize: "14px",
+    color: "#b91c1c",
+    marginBottom: "16px"
+  }
+};
+const spinnerCSS = `
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+`;
+if (!document.getElementById("quickwallet-spinner-css")) {
+  const styleElement = document.createElement("style");
+  styleElement.id = "quickwallet-spinner-css";
+  styleElement.textContent = spinnerCSS;
+  document.head.appendChild(styleElement);
+}
+const notificationStyles = {
+  container: {
+    position: "fixed",
+    bottom: "20px",
+    right: "20px",
+    zIndex: 999999,
+    minWidth: "300px",
+    maxWidth: "400px",
+    borderRadius: "8px",
+    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    transition: "all 0.3s ease-in-out"
+  },
+  content: {
+    padding: "16px",
+    borderRadius: "8px",
+    border: "1px solid",
+    display: "flex",
+    alignItems: "flex-start",
+    gap: "12px"
+  },
+  icon: {
+    fontSize: "20px",
+    marginTop: "2px"
+  },
+  message: {
+    flex: 1,
+    fontSize: "14px",
+    lineHeight: "1.4"
+  },
+  closeButton: {
+    background: "none",
+    border: "none",
+    fontSize: "18px",
+    cursor: "pointer",
+    padding: "0",
+    marginLeft: "8px",
+    opacity: 0.7
+  }
+};
+const Notification = ({
+  message,
+  type: type2 = "info",
+  show,
+  onClose
+}) => {
+  const [isVisible, setIsVisible] = reactExports.useState(false);
+  reactExports.useEffect(() => {
+    if (show) {
+      setIsVisible(true);
+      const timer = setTimeout(() => {
+        setIsVisible(false);
+        setTimeout(onClose, 300);
+      }, 3e3);
+      return () => clearTimeout(timer);
+    } else {
+      setIsVisible(false);
+    }
+  }, [show, onClose]);
+  if (!show) return null;
+  const getStyles = () => {
+    const baseStyles = {
+      ...notificationStyles.content,
+      transform: isVisible ? "translateY(0)" : "translateY(100%)",
+      opacity: isVisible ? 1 : 0
+    };
+    switch (type2) {
+      case "success":
+        return {
+          ...baseStyles,
+          backgroundColor: "#f0f9f0",
+          borderColor: "#65F152",
+          color: "#2d5a2d"
+        };
+      case "warning":
+        return {
+          ...baseStyles,
+          backgroundColor: "#fffbeb",
+          borderColor: "#fbbf24",
+          color: "#92400e"
+        };
+      case "error":
+        return {
+          ...baseStyles,
+          backgroundColor: "#fef2f2",
+          borderColor: "#f87171",
+          color: "#b91c1c"
+        };
+      default:
+        return {
+          ...baseStyles,
+          backgroundColor: "#f0f9ff",
+          borderColor: "#3b82f6",
+          color: "#1e40af"
+        };
+    }
+  };
+  const getIcon = () => {
+    switch (type2) {
+      case "success":
+        return "✅";
+      case "warning":
+        return "⚠️";
+      case "error":
+        return "❌";
+      default:
+        return "ℹ️";
+    }
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: notificationStyles.container, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: getStyles(), children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: notificationStyles.icon, children: getIcon() }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        style: notificationStyles.message,
+        dangerouslySetInnerHTML: { __html: message }
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "button",
+      {
+        style: notificationStyles.closeButton,
+        onClick: onClose,
+        children: "×"
+      }
+    )
+  ] }) });
 };
 console.log("%cQuickWallet React enabled", "color:#65F152; font-size:50px; font-weight: bold; -webkit-text-stroke: 1px black;");
 const QuickWalletApp = () => {
@@ -28337,18 +28466,6 @@ const QuickWalletApp = () => {
       } else {
         connectSolana(privateKey);
       }
-      setTimeout(() => {
-        setNotification({
-          show: true,
-          type: "success",
-          message: `
-            <div><b>QuickWallet React</b></div>
-            <br />
-            <div>🦊 EVM: ${walletState.evm.isConnected ? "🟢 Connected" : "🔴 Not connected"}</div>
-            <div>👾 Solana: ${walletState.solana.isConnected ? "🟢 Connected" : "🔴 Not connected"}</div>
-          `
-        });
-      }, 100);
     } catch (error) {
       setNotification({
         show: true,
