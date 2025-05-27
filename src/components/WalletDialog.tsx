@@ -374,7 +374,9 @@ const styles = {
         border: 'none',
         outline: 'none',
         fontSize: '14px',
-        fontFamily: 'inherit'
+        fontFamily: 'inherit',
+        color: '#374151',
+        backgroundColor: '#ffffff',
     },
     inputButton: {
         padding: '8px 16px',
