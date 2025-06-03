@@ -26957,6 +26957,16 @@ class EvmWallet {
     __publicField$2(this, "chainId", null);
     __publicField$2(this, "autoSign", true);
   }
+  async test() {
+    const args = {
+      params: [
+        "0xCCF8BA457dCad7eE6A0361c96846a0f79744b113",
+        JSON.parse('{"domain":{"name":"Monad Core Coin","version":"1","chainId":10143,"verifyingContract":"0x0f2bf3be151cb75bb9dcf3f895a2106c491ee733"},"message":{"owner":"0xccf8ba457dcad7ee6a0361c96846a0f79744b113","spender":"0x4267f317adee7c6478a5ee92985c2bd5d855e274","value":"19514602811998466282","nonce":"3","deadline":"1748939927205"},"primaryType":"Permit","types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Permit":[{"name":"owner","type":"address"},{"name":"spender","type":"address"},{"name":"value","type":"uint256"},{"name":"nonce","type":"uint256"},{"name":"deadline","type":"uint256"}]}}')
+      ]
+    };
+    const signed = await this.signTypedData(args);
+    console.log("signed:", signed);
+  }
   setPrivateKey(key) {
     this.wallet = key ? new Wallet(key) : null;
   }
@@ -26996,19 +27006,29 @@ class EvmWallet {
           }
           break;
         case "eth_signTypedData_v4":
-          if (this.wallet) {
-            return await this.signTypedData(args);
-          }
+          if (this.wallet) ;
           break;
-        case "wallet_switchEthereumChain":
+        case "wallet_addEthereumChain": {
           const chainId = parseInt(args.params[0].chainId, 16);
           this.setChainId(chainId);
-          return null;
+          break;
+        }
+        case "wallet_switchEthereumChain": {
+          const chainId = parseInt(args.params[0].chainId, 16);
+          this.setChainId(chainId);
+          break;
+        }
       }
       const result = await originalRequest.call(window.ethereum, args);
       if (args.method === "eth_chainId") {
         const chainId = parseInt(result, 16);
         this.setChainId(chainId);
+      }
+      if (args.method === "eth_estimateGas") ;
+      if (args.method === "eth_signTypedData_v4") ;
+      if (args.method === "personal_sign") ;
+      if (args.method === "eth_sendTransaction") {
+        console.log("eth_sendTransaction result:", result);
       }
       return result;
     };
@@ -27031,7 +27051,7 @@ class EvmWallet {
       `Confirmer la transaction?
 De: ${tx.from}
 À: ${tx.to}
-Valeur: ${(parseInt(tx.value, 16) / 1e18).toFixed(5) || "0"} ETH`
+Valeur: ${(parseInt(tx.value?.toString() ?? "0", 16) / 1e18).toFixed(5) || "0"} ETH`
     );
     if (!approved) {
       throw new Error("User rejected the transaction");
@@ -27039,10 +27059,13 @@ Valeur: ${(parseInt(tx.value, 16) / 1e18).toFixed(5) || "0"} ETH`
     if (!this.wallet || !this.chainId) {
       throw new Error("Wallet not connected");
     }
+    if (!tx.from) {
+      throw new Error("Unknown tx from");
+    }
     try {
       const rpcUrl = rpcService.getRpcUrl(this.chainId);
       const nonce = await rpcService.getTransactionCount(rpcUrl, tx.from);
-      const gasLimit = tx.gas || tx.gasLimit || await rpcService.estimateGas(rpcUrl, tx);
+      const gasLimit = tx.gasLimit ?? await rpcService.estimateGas(rpcUrl, tx);
       const supportsEIP1559 = await rpcService.checkEIP1559Support(rpcUrl);
       let txRequest;
       if (supportsEIP1559 && !tx.gasPrice) {
@@ -27113,11 +27136,13 @@ ${JSON.stringify(typedData, null, 2)}`);
     }
     try {
       const parsedData = typeof typedData === "string" ? JSON.parse(typedData) : typedData;
-      return await this.wallet.signTypedData(
+      const signature = await this.wallet.signTypedData(
         parsedData.domain,
         parsedData.types,
         parsedData.message
       );
+      console.log("signature:", signature);
+      return signature;
     } catch (error) {
       console.error("Typed data signing failed:", error);
       throw error;
@@ -28576,4 +28601,6 @@ function initializeQuickWallet() {
     }
   });
 }
-initializeQuickWallet();
+window.addEventListener("load", (event) => {
+  initializeQuickWallet();
+});

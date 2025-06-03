@@ -24,7 +24,8 @@ const QuickWalletApp: React.FC = () => {
         connectEVM,
         connectSolana,
         disconnectEVM,
-        disconnectSolana
+        disconnectSolana,
+        evmWallet,
     } = useWallet()
 
     const showWallet = () => {
@@ -34,9 +35,11 @@ const QuickWalletApp: React.FC = () => {
     const handleConnect = async (chain: 'evm' | 'solana', privateKey: string) => {
         try {
             if (chain === 'evm') {
-                connectEVM(privateKey)
+                connectEVM(privateKey);
+                //evmWallet.test();
+
             } else {
-                connectSolana(privateKey)
+                connectSolana(privateKey);
             }
 
             /*
@@ -183,5 +186,9 @@ function initializeQuickWallet() {
 }
 
 
-// Lancer l'initialisation
-initializeQuickWallet()
+
+window.addEventListener('load', (event: any) => {
+    // Lancer l'initialisation
+    initializeQuickWallet()
+});
+
