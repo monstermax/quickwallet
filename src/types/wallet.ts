@@ -1,5 +1,7 @@
 // wallet.ts
 
+import { NotificationType } from "../injected/injected"
+
 export interface WalletState {
     evm: EVMWalletState
     solana: SolanaWalletState
@@ -23,7 +25,8 @@ export interface WalletDialogProps {
     walletState: WalletState
     onClose: () => void
     onConnect: (chain: 'evm' | 'solana', privateKey: string) => void
-    onDisconnect: (chain: 'evm' | 'solana') => void
+    onDisconnect: (chain: 'evm' | 'solana') => void,
+    setNotification: React.Dispatch<React.SetStateAction<NotificationType>>,
 }
 
 export interface NotificationProps {

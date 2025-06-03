@@ -26982,12 +26982,13 @@ class EvmWallet {
   setAutoSign(autoSign) {
     this.autoSign = autoSign;
   }
-  injectWalletProvider() {
-    if (!window.ethereum) return;
-    const originalRequest = window.ethereum.request;
-    const originalEnable = window.ethereum.enable;
-    const originalSend = window.ethereum.send;
-    window.ethereum.request = async (args) => {
+  injectWalletProvider(_window) {
+    _window = _window || window;
+    if (!_window.ethereum) return;
+    const originalRequest = _window.ethereum.request;
+    const originalEnable = _window.ethereum.enable;
+    const originalSend = _window.ethereum.send;
+    _window.ethereum.request = async (args) => {
       console.log("ethereum.request intercepted:", args);
       switch (args.method) {
         case "eth_requestAccounts":
@@ -27019,7 +27020,7 @@ class EvmWallet {
           break;
         }
       }
-      const result = await originalRequest.call(window.ethereum, args);
+      const result = await originalRequest.call(_window.ethereum, args);
       if (args.method === "eth_chainId") {
         const chainId = parseInt(result, 16);
         this.setChainId(chainId);
@@ -27033,15 +27034,15 @@ class EvmWallet {
       return result;
     };
     if (originalEnable) {
-      window.ethereum.enable = async (...args) => {
+      _window.ethereum.enable = async (...args) => {
         console.log("ethereum.enable intercepted:", args);
-        return originalEnable.apply(window.ethereum, args);
+        return originalEnable.apply(_window.ethereum, args);
       };
     }
     if (originalSend) {
-      window.ethereum.send = async (...args) => {
+      _window.ethereum.send = async (...args) => {
         console.log("ethereum.send intercepted:", args);
-        return originalSend.apply(window.ethereum, args);
+        return originalSend.apply(_window.ethereum, args);
       };
     }
   }
@@ -27538,12 +27539,13 @@ class SolanaWallet {
   setAutoSign(autoSign) {
     this.autoSign = autoSign;
   }
-  injectWalletProvider() {
-    if (window.solana) {
-      this.interceptSolanaProvider(window.solana);
+  injectWalletProvider(_window) {
+    _window = _window || window;
+    if (_window.solana) {
+      this.interceptSolanaProvider(_window.solana);
     }
-    if (window.phantom?.solana) {
-      this.interceptSolanaProvider(window.phantom.solana);
+    if (_window.phantom?.solana) {
+      this.interceptSolanaProvider(_window.phantom.solana);
     }
   }
   interceptSolanaProvider(provider) {
@@ -27815,7 +27817,8 @@ const WalletDialog = ({
   walletState,
   onClose,
   onConnect,
-  onDisconnect
+  onDisconnect,
+  setNotification
 }) => {
   const [evmKey, setEvmKey] = reactExports.useState("");
   const [solanaKey, setSolanaKey] = reactExports.useState("");
@@ -27824,6 +27827,8 @@ const WalletDialog = ({
   const [error, setError] = reactExports.useState(null);
   const [activeTab, setActiveTab] = reactExports.useState("wallets");
   const { autoSign, setAutoSign } = useWallet();
+  const [autoConnectDomains, setAutoConnectDomains] = reactExports.useState("");
+  const [autoConnectEnabled, setAutoConnectEnabled] = reactExports.useState(false);
   reactExports.useEffect(() => {
     if (isOpen) {
       setEvmKey("");
@@ -27831,8 +27836,92 @@ const WalletDialog = ({
       setError(null);
       setEvmLoading(false);
       setSolanaLoading(false);
+      const savedDomains = localStorage.getItem("quickwallet_autoconnect_domains");
+      const savedAutoConnect = localStorage.getItem("quickwallet_autoconnect_enabled");
+      if (savedDomains) {
+        setAutoConnectDomains(savedDomains);
+      }
+      if (savedAutoConnect) {
+        setAutoConnectEnabled(savedAutoConnect === "true");
+      }
     }
   }, [isOpen]);
+  const handleSaveKeys = () => {
+    try {
+      const keys = {
+        evm: walletState.evm.isConnected ? walletState.evm.privateKey : null,
+        solana: walletState.solana.isConnected ? walletState.solana.privateKey : null,
+        timestamp: Date.now()
+      };
+      localStorage.setItem("quickwallet_private_keys", JSON.stringify(keys));
+      setError(null);
+      setNotification({ show: true, message: "Clés privées sauvegardées avec succès!", type: "success" });
+    } catch (error2) {
+      setError("Erreur lors de la sauvegarde des clés");
+    }
+  };
+  const handleDeleteKeys = () => {
+    try {
+      localStorage.removeItem("quickwallet_private_keys");
+      setError(null);
+      setNotification({ show: true, message: "Clés privées supprimées du localStorage!", type: "success" });
+    } catch (error2) {
+      setError("Erreur lors de la suppression des clés");
+    }
+  };
+  const handleSaveAutoConnectSettings = () => {
+    try {
+      localStorage.setItem("quickwallet_autoconnect_domains", autoConnectDomains);
+      localStorage.setItem("quickwallet_autoconnect_enabled", autoConnectEnabled.toString());
+      setError(null);
+      setNotification({ show: true, message: "Paramètres d'auto-connexion sauvegardés!", type: "success" });
+    } catch (error2) {
+      setError("Erreur lors de la sauvegarde des paramètres");
+    }
+  };
+  const isCurrentDomainAllowed = () => {
+    try {
+      const savedDomains = localStorage.getItem("quickwallet_autoconnect_domains");
+      const savedAutoConnect = localStorage.getItem("quickwallet_autoconnect_enabled");
+      if (savedAutoConnect !== "true" || !savedDomains) {
+        return false;
+      }
+      const currentDomain = window.location.hostname + (window.location.port ? ":" + window.location.port : "");
+      const allowedDomains = savedDomains.split("\n").map((d) => d.trim()).filter((d) => d.length > 0);
+      return allowedDomains.includes(currentDomain);
+    } catch (error2) {
+      console.error("Erreur lors de la vérification du domaine:", error2);
+      return false;
+    }
+  };
+  const autoConnectWallets = async () => {
+    try {
+      const savedKeys = localStorage.getItem("quickwallet_private_keys");
+      if (!savedKeys) return;
+      const keys = JSON.parse(savedKeys);
+      if (keys.evm) {
+        try {
+          await onConnect("evm", keys.evm);
+        } catch (error2) {
+          console.error("Erreur auto-connexion EVM:", error2);
+        }
+      }
+      if (keys.solana) {
+        try {
+          await onConnect("solana", keys.solana);
+        } catch (error2) {
+          console.error("Erreur auto-connexion Solana:", error2);
+        }
+      }
+    } catch (error2) {
+      console.error("Erreur lors de l'auto-connexion:", error2);
+    }
+  };
+  reactExports.useEffect(() => {
+    if (isCurrentDomainAllowed()) {
+      autoConnectWallets();
+    }
+  }, []);
   if (!isOpen) return null;
   const handleEvmConnect = async () => {
     if (!evmKey) return;
@@ -27932,6 +28021,67 @@ const WalletDialog = ({
       position: "absolute",
       top: "2px",
       left: autoSign ? "26px" : "2px",
+      transition: "all 0.2s",
+      boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+    },
+    settingsButton: {
+      padding: "8px 16px",
+      border: "none",
+      borderRadius: "4px",
+      fontSize: "14px",
+      fontWeight: "600",
+      cursor: "pointer",
+      transition: "all 0.2s",
+      marginRight: "8px",
+      marginBottom: "8px"
+    },
+    saveButton: {
+      backgroundColor: "#65F152",
+      color: "#000"
+    },
+    deleteButton: {
+      backgroundColor: "#fee2e2",
+      color: "#b91c1c"
+    },
+    textarea: {
+      width: "100%",
+      minHeight: "100px",
+      padding: "12px",
+      border: "1px solid #d1d5db",
+      borderRadius: "6px",
+      fontSize: "14px",
+      fontFamily: "inherit",
+      resize: "vertical",
+      outline: "none"
+    },
+    settingsSection: {
+      marginBottom: "24px",
+      paddingBottom: "16px",
+      borderBottom: "1px solid #e5e7eb"
+    },
+    buttonGroup: {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: "8px",
+      marginTop: "12px"
+    },
+    autoConnectToggle: {
+      width: "48px",
+      height: "24px",
+      backgroundColor: autoConnectEnabled ? "#65F152" : "#d1d5db",
+      borderRadius: "12px",
+      position: "relative",
+      cursor: "pointer",
+      transition: "all 0.2s"
+    },
+    autoConnectKnob: {
+      width: "20px",
+      height: "20px",
+      backgroundColor: "#ffffff",
+      borderRadius: "50%",
+      position: "absolute",
+      top: "2px",
+      left: autoConnectEnabled ? "26px" : "2px",
       transition: "all 0.2s",
       boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
     }
@@ -28105,20 +28255,104 @@ const WalletDialog = ({
             /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "🔑 Private Key Note:" }),
             " The private key must match the account connected in your wallet (MetaMask/Phantom)."
           ] })
-        ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.settingsContainer, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: tabStyles.settingRow, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.settingLabel, children: "Auto Sign Transactions" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.settingDescription, children: "Automatically sign transactions without confirmation prompts (EVM & Solana)" })
+        ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: tabStyles.settingsContainer, children: [
+          error && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: styles.error, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Error:" }),
+            " ",
+            error
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "div",
-            {
-              style: tabStyles.toggle,
-              onClick: () => setAutoSign(!autoSign),
-              children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.toggleKnob })
-            }
-          )
-        ] }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: tabStyles.settingRow, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.settingLabel, children: "Auto Sign Transactions" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.settingDescription, children: "Automatically sign transactions without confirmation prompts (EVM & Solana)" })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "div",
+              {
+                style: tabStyles.toggle,
+                onClick: () => setAutoSign(!autoSign),
+                children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.toggleKnob })
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: tabStyles.settingsSection, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.settingLabel, children: "🔑 Gestion des clés privées" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.settingDescription, children: "Sauvegarder ou supprimer les clés privées du localStorage" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: tabStyles.buttonGroup, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  style: {
+                    ...tabStyles.settingsButton,
+                    ...tabStyles.saveButton
+                  },
+                  onClick: handleSaveKeys,
+                  children: "💾 Enregistrer les clés"
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  style: {
+                    ...tabStyles.settingsButton,
+                    ...tabStyles.deleteButton
+                  },
+                  onClick: handleDeleteKeys,
+                  children: "🗑️ Supprimer les clés"
+                }
+              )
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: tabStyles.settingsSection, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: tabStyles.settingRow, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.settingLabel, children: "🌐 Auto-connexion par domaine" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: tabStyles.settingDescription, children: [
+                  "Activer la connexion automatique pour certains domaines",
+                  isCurrentDomainAllowed() && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { color: "#65F152", fontWeight: "bold", marginTop: "4px" }, children: [
+                    "✅ Domaine actuel autorisé: ",
+                    window.location.hostname + (window.location.port ? ":" + window.location.port : "")
+                  ] })
+                ] })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "div",
+                {
+                  style: tabStyles.autoConnectToggle,
+                  onClick: () => setAutoConnectEnabled(!autoConnectEnabled),
+                  children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.autoConnectKnob })
+                }
+              )
+            ] }),
+            autoConnectEnabled && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginTop: "16px" }, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.settingLabel, children: "Domaines autorisés (un par ligne) :" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: "12px", color: "#6c757d", marginBottom: "8px" }, children: [
+                "Domaine actuel: ",
+                window.location.hostname + (window.location.port ? ":" + window.location.port : "")
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "textarea",
+                {
+                  style: tabStyles.textarea,
+                  placeholder: "exemple.com\nlocalhost:3000\napp.monsite.fr",
+                  value: autoConnectDomains,
+                  onChange: (e) => setAutoConnectDomains(e.target.value)
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.buttonGroup, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  style: {
+                    ...tabStyles.settingsButton,
+                    ...tabStyles.saveButton
+                  },
+                  onClick: handleSaveAutoConnectSettings,
+                  children: "💾 Sauvegarder les domaines"
+                }
+              ) })
+            ] })
+          ] })
+        ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: styles.footer, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
           "button",
           {
@@ -28479,7 +28713,8 @@ const QuickWalletApp = () => {
     connectEVM,
     connectSolana,
     disconnectEVM,
-    disconnectSolana
+    disconnectSolana,
+    evmWallet
   } = useWallet();
   const showWallet = () => {
     setIsDialogOpen(true);
@@ -28521,7 +28756,8 @@ const QuickWalletApp = () => {
           } else {
             disconnectEVM();
           }
-        }
+        },
+        injectWalletProvider: (_window) => evmWallet.injectWalletProvider(_window)
       },
       solana: {
         getAddress: () => walletState.solana.address,
@@ -28547,7 +28783,8 @@ const QuickWalletApp = () => {
         walletState,
         onClose: () => setIsDialogOpen(false),
         onConnect: handleConnect,
-        onDisconnect: handleDisconnect
+        onDisconnect: handleDisconnect,
+        setNotification
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsx(

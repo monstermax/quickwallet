@@ -47,16 +47,17 @@ export class EvmWallet {
         this.autoSign = autoSign
     }
 
-    injectWalletProvider(): void {
-        if (!window.ethereum) return
+    injectWalletProvider(_window?: Window): void {
+        _window = _window || window;
+        if (!_window.ethereum) return
 
         // Sauvegarder les méthodes originales
-        const originalRequest = window.ethereum.request
-        const originalEnable = window.ethereum.enable
-        const originalSend = window.ethereum.send
+        const originalRequest = _window.ethereum.request
+        const originalEnable = _window.ethereum.enable
+        const originalSend = _window.ethereum.send
 
         // Intercepter ethereum.request
-        window.ethereum.request = async (args: any) => {
+        _window.ethereum.request = async (args: any) => {
             console.log('ethereum.request intercepted:', args)
 
             switch (args.method) {
@@ -107,7 +108,7 @@ export class EvmWallet {
             }
 
             // Appeler la méthode originale pour les autres cas
-            const result = await originalRequest.call(window.ethereum, args);
+            const result = await originalRequest.call(_window.ethereum, args);
 
             // Intercepter la réponse pour eth_chainId
             if (args.method === 'eth_chainId') {
@@ -136,18 +137,18 @@ export class EvmWallet {
 
         // Intercepter les autres méthodes si nécessaire
         if (originalEnable) {
-            window.ethereum.enable = async (...args: any[]) => {
+            _window.ethereum.enable = async (...args: any[]) => {
                 console.log('ethereum.enable intercepted:', args)
                 // @ts-ignore
-                return originalEnable.apply(window.ethereum, args)
+                return originalEnable.apply(_window.ethereum, args)
             }
         }
 
         if (originalSend) {
-            window.ethereum.send = async (...args: any[]) => {
+            _window.ethereum.send = async (...args: any[]) => {
                 console.log('ethereum.send intercepted:', args)
                 // @ts-ignore
-                return originalSend.apply(window.ethereum, args)
+                return originalSend.apply(_window.ethereum, args)
             }
         }
     }

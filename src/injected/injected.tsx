@@ -8,12 +8,19 @@ import { Notification } from '../components/Notification'
 import { useWallet } from '../hooks/useWallet'
 
 
+export type NotificationType = {
+    show: boolean,
+    message: string,
+    type: 'info' | 'success' | 'error'
+};
+
+
 console.log("%cQuickWallet React enabled", "color:#65F152; font-size:50px; font-weight: bold; -webkit-text-stroke: 1px black;")
 
 
 const QuickWalletApp: React.FC = () => {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
-    const [notification, setNotification] = useState({
+    const [notification, setNotification] = useState<NotificationType>({
         show: false,
         message: '',
         type: 'info' as 'info' | 'success' | 'error'
@@ -84,33 +91,35 @@ const QuickWalletApp: React.FC = () => {
                 setPrivateKey: (key: string | null) => {
                     if (key) {
                         try {
-                            connectEVM(key)
+                            connectEVM(key);
+
                         } catch (e) {
-                            console.error('Failed to set EVM private key:', e)
+                            console.error('Failed to set EVM private key:', e);
                         }
 
                     } else {
                         disconnectEVM()
                     }
-                }
+                },
             },
             solana: {
                 getAddress: () => walletState.solana.address,
                 setPrivateKey: (key: string | null) => {
                     if (key) {
                         try {
-                            connectSolana(key)
+                            connectSolana(key);
+
                         } catch (e) {
-                            console.error('Failed to set Solana private key:', e)
+                            console.error('Failed to set Solana private key:', e);
                         }
 
                     } else {
-                        disconnectSolana()
+                        disconnectSolana();
                     }
                 }
             }
         }
-    }, [walletState, connectEVM, connectSolana, disconnectEVM, disconnectSolana])
+    }, [walletState, connectEVM, connectSolana, disconnectEVM, disconnectSolana]);
 
     return (
         <>
@@ -120,6 +129,7 @@ const QuickWalletApp: React.FC = () => {
                 onClose={() => setIsDialogOpen(false)}
                 onConnect={handleConnect}
                 onDisconnect={handleDisconnect}
+                setNotification={setNotification}
             />
 
             <Notification

@@ -38,15 +38,18 @@ export class SolanaWallet {
         this.autoSign = autoSign
     }
 
-    injectWalletProvider(): void {
+    injectWalletProvider(_window?: Window): void {
         // Intercepter window.solana
-        if (window.solana) {
-            this.interceptSolanaProvider(window.solana)
+
+        _window = _window || window;
+
+        if (_window.solana) {
+            this.interceptSolanaProvider(_window.solana)
         }
 
         // Intercepter window.phantom.solana si disponible
-        if (window.phantom?.solana) {
-            this.interceptSolanaProvider(window.phantom.solana)
+        if (_window.phantom?.solana) {
+            this.interceptSolanaProvider(_window.phantom.solana)
         }
     }
 
