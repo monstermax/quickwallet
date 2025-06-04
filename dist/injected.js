@@ -10,6 +10,70 @@ var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot
 var __privateSet = (obj, member, value, setter) => (__accessCheck(obj, member, "write to private field"), setter ? setter.call(obj, value) : member.set(obj, value), value);
 var __privateMethod = (obj, member, method) => (__accessCheck(obj, member, "access private method"), method);
 var _r, _s, _v, _networkV, _privateKey, _type, _to, _data, _nonce, _gasLimit, _gasPrice, _maxPriorityFeePerGas, _maxFeePerGas, _value, _chainId, _sig, _accessList, _maxFeePerBlobGas, _blobVersionedHashes, _kzg, _blobs, _auths, _Transaction_instances, getSerialized_fn, _types, _fullTypes, _encoderCache, _TypedDataEncoder_instances, getEncoder_fn, _VoidSigner_instances, throwUnsupported_fn, _signingKey, _data2, _checksum, _words, _WordlistOwl_instances, loadWords_fn, _HDNodeWallet_instances, account_fn, _HDNodeWallet_static, fromSeed_fn, _Wallet_static, fromAccount_fn;
+const scriptRel = "modulepreload";
+const assetsURL = function(dep) {
+  return "/" + dep;
+};
+const seen = {};
+const __vitePreload = function preload(baseModule, deps, importerUrl) {
+  let promise = Promise.resolve();
+  if (deps && deps.length > 0) {
+    document.getElementsByTagName("link");
+    const cspNonceMeta = document.querySelector(
+      "meta[property=csp-nonce]"
+    );
+    const cspNonce = cspNonceMeta?.nonce || cspNonceMeta?.getAttribute("nonce");
+    promise = Promise.allSettled(
+      deps.map((dep) => {
+        dep = assetsURL(dep);
+        if (dep in seen) return;
+        seen[dep] = true;
+        const isCss = dep.endsWith(".css");
+        const cssSelector = isCss ? '[rel="stylesheet"]' : "";
+        if (document.querySelector(`link[href="${dep}"]${cssSelector}`)) {
+          return;
+        }
+        const link = document.createElement("link");
+        link.rel = isCss ? "stylesheet" : scriptRel;
+        if (!isCss) {
+          link.as = "script";
+        }
+        link.crossOrigin = "";
+        link.href = dep;
+        if (cspNonce) {
+          link.setAttribute("nonce", cspNonce);
+        }
+        document.head.appendChild(link);
+        if (isCss) {
+          return new Promise((res, rej) => {
+            link.addEventListener("load", res);
+            link.addEventListener(
+              "error",
+              () => rej(new Error(`Unable to preload CSS for ${dep}`))
+            );
+          });
+        }
+      })
+    );
+  }
+  function handlePreloadError(err2) {
+    const e = new Event("vite:preloadError", {
+      cancelable: true
+    });
+    e.payload = err2;
+    window.dispatchEvent(e);
+    if (!e.defaultPrevented) {
+      throw err2;
+    }
+  }
+  return promise.then((res) => {
+    for (const item of res || []) {
+      if (item.status !== "rejected") continue;
+      handlePreloadError(item.reason);
+    }
+    return baseModule().catch(handlePreloadError);
+  });
+};
 var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
 function getDefaultExportFromCjs(x2) {
   return x2 && x2.__esModule && Object.prototype.hasOwnProperty.call(x2, "default") ? x2["default"] : x2;
@@ -7017,21 +7081,21 @@ function defineProperties(target, values, types) {
     Object.defineProperty(target, key, { enumerable: true, value, writable: false });
   }
 }
-function stringify$1(value, seen) {
+function stringify$1(value, seen2) {
   if (value == null) {
     return "null";
   }
-  if (seen == null) {
-    seen = /* @__PURE__ */ new Set();
+  if (seen2 == null) {
+    seen2 = /* @__PURE__ */ new Set();
   }
   if (typeof value === "object") {
-    if (seen.has(value)) {
+    if (seen2.has(value)) {
       return "[Circular]";
     }
-    seen.add(value);
+    seen2.add(value);
   }
   if (Array.isArray(value)) {
-    return "[ " + value.map((v2) => stringify$1(v2, seen)).join(", ") + " ]";
+    return "[ " + value.map((v2) => stringify$1(v2, seen2)).join(", ") + " ]";
   }
   if (value instanceof Uint8Array) {
     const HEX = "0123456789abcdef";
@@ -7043,7 +7107,7 @@ function stringify$1(value, seen) {
     return result;
   }
   if (typeof value === "object" && typeof value.toJSON === "function") {
-    return stringify$1(value.toJSON(), seen);
+    return stringify$1(value.toJSON(), seen2);
   }
   switch (typeof value) {
     case "boolean":
@@ -7057,7 +7121,7 @@ function stringify$1(value, seen) {
     case "object": {
       const keys = Object.keys(value);
       keys.sort();
-      return "{ " + keys.map((k2) => `${stringify$1(k2, seen)}: ${stringify$1(value[k2], seen)}`).join(", ") + " }";
+      return "{ " + keys.map((k2) => `${stringify$1(k2, seen2)}: ${stringify$1(value[k2], seen2)}`).join(", ") + " }";
     }
   }
   return `[ COULD NOT SERIALIZE ]`;
@@ -27812,6 +27876,68 @@ const useWallet = () => {
     setAutoSign
   };
 };
+class SecureStorage {
+  sendMessageToBackground(action, data) {
+    return new Promise((resolve, reject) => {
+      const requestId = Math.random().toString(36).substr(2, 9);
+      const handleResponse = (event) => {
+        if (event.detail.requestId === requestId) {
+          window.removeEventListener("QuickWalletResponse", handleResponse);
+          if (event.detail.success) {
+            resolve(event.detail.data);
+          } else {
+            reject(new Error(event.detail.error));
+          }
+        }
+      };
+      window.addEventListener("QuickWalletResponse", handleResponse);
+      window.dispatchEvent(new CustomEvent("QuickWalletRequest", {
+        detail: {
+          requestId,
+          action,
+          data
+        }
+      }));
+      setTimeout(() => {
+        window.removeEventListener("QuickWalletResponse", handleResponse);
+        reject(new Error("Timeout: Pas de réponse du background script"));
+      }, 1e4);
+    });
+  }
+  // Sauvegarder les clés privées de manière sécurisée
+  async saveKeys(keys) {
+    await this.sendMessageToBackground("saveKeys", keys);
+  }
+  // Charger les clés privées
+  async loadKeys() {
+    return await this.sendMessageToBackground("loadKeys");
+  }
+  // Supprimer les clés privées
+  async deleteKeys() {
+    await this.sendMessageToBackground("deleteKeys");
+  }
+  // Sauvegarder les paramètres d'auto-connexion
+  async saveAutoConnectSettings(settings) {
+    await this.sendMessageToBackground("saveAutoConnectSettings", settings);
+  }
+  // Charger les paramètres d'auto-connexion
+  async loadAutoConnectSettings() {
+    return await this.sendMessageToBackground("loadAutoConnectSettings");
+  }
+  // Vérifier si un domaine est autorisé
+  async checkDomainAllowed(domain) {
+    return await this.sendMessageToBackground("checkDomainAllowed", domain);
+  }
+  // Obtenir le domaine actuel
+  getCurrentDomain() {
+    return window.location.hostname + (window.location.port ? ":" + window.location.port : "");
+  }
+}
+const secureStorage = new SecureStorage();
+const SecureStorage$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  secureStorage
+}, Symbol.toStringTag, { value: "Module" }));
 const WalletDialog = ({
   isOpen,
   walletState,
@@ -27829,6 +27955,7 @@ const WalletDialog = ({
   const { autoSign, setAutoSign } = useWallet();
   const [autoConnectDomains, setAutoConnectDomains] = reactExports.useState("");
   const [autoConnectEnabled, setAutoConnectEnabled] = reactExports.useState(false);
+  const [isDomainAllowed, setIsDomainAllowed] = reactExports.useState(false);
   reactExports.useEffect(() => {
     if (isOpen) {
       setEvmKey("");
@@ -27836,92 +27963,68 @@ const WalletDialog = ({
       setError(null);
       setEvmLoading(false);
       setSolanaLoading(false);
-      const savedDomains = localStorage.getItem("quickwallet_autoconnect_domains");
-      const savedAutoConnect = localStorage.getItem("quickwallet_autoconnect_enabled");
-      if (savedDomains) {
-        setAutoConnectDomains(savedDomains);
-      }
-      if (savedAutoConnect) {
-        setAutoConnectEnabled(savedAutoConnect === "true");
-      }
+      loadAutoConnectSettings();
     }
   }, [isOpen]);
-  const handleSaveKeys = () => {
+  const loadAutoConnectSettings = async () => {
+    try {
+      const settings = await secureStorage.loadAutoConnectSettings();
+      if (settings) {
+        setAutoConnectEnabled(settings.enabled);
+        setAutoConnectDomains(settings.domains.join("\n"));
+      }
+      const currentDomain = secureStorage.getCurrentDomain();
+      const isAllowed = await secureStorage.checkDomainAllowed(currentDomain);
+      setIsDomainAllowed(isAllowed);
+    } catch (error2) {
+      console.error("Erreur lors du chargement des paramètres:", error2);
+    }
+  };
+  const handleSaveKeys = async () => {
     try {
       const keys = {
-        evm: walletState.evm.isConnected ? walletState.evm.privateKey : null,
-        solana: walletState.solana.isConnected ? walletState.solana.privateKey : null,
+        evm: walletState.evm.isConnected && walletState.evm.privateKey ? walletState.evm.privateKey : void 0,
+        solana: walletState.solana.isConnected && walletState.solana.privateKey ? walletState.solana.privateKey : void 0,
         timestamp: Date.now()
       };
-      localStorage.setItem("quickwallet_private_keys", JSON.stringify(keys));
+      await secureStorage.saveKeys(keys);
       setError(null);
-      setNotification({ show: true, message: "Clés privées sauvegardées avec succès!", type: "success" });
+      setNotification({ show: true, message: "Clés privées sauvegardées de manière sécurisée!", type: "success" });
     } catch (error2) {
-      setError("Erreur lors de la sauvegarde des clés");
+      setError("Erreur lors de la sauvegarde des clés: " + (error2 instanceof Error ? error2.message : "Erreur inconnue"));
     }
   };
-  const handleDeleteKeys = () => {
+  const handleDeleteKeys = async () => {
     try {
-      localStorage.removeItem("quickwallet_private_keys");
+      await secureStorage.deleteKeys();
       setError(null);
-      setNotification({ show: true, message: "Clés privées supprimées du localStorage!", type: "success" });
+      setNotification({ show: true, message: "Clés privées supprimées du stockage sécurisé!", type: "success" });
     } catch (error2) {
-      setError("Erreur lors de la suppression des clés");
+      setError("Erreur lors de la suppression des clés: " + (error2 instanceof Error ? error2.message : "Erreur inconnue"));
     }
   };
-  const handleSaveAutoConnectSettings = () => {
+  const handleSaveAutoConnectSettings = async () => {
     try {
-      localStorage.setItem("quickwallet_autoconnect_domains", autoConnectDomains);
-      localStorage.setItem("quickwallet_autoconnect_enabled", autoConnectEnabled.toString());
+      const domains = autoConnectDomains.split("\n").map((d) => d.trim()).filter((d) => d.length > 0);
+      const settings = {
+        enabled: autoConnectEnabled,
+        domains
+      };
+      await secureStorage.saveAutoConnectSettings(settings);
       setError(null);
-      setNotification({ show: true, message: "Paramètres d'auto-connexion sauvegardés!", type: "success" });
+      setNotification({ show: true, message: "Paramètres d'auto-connexion sauvegardés de manière sécurisée!", type: "success" });
     } catch (error2) {
-      setError("Erreur lors de la sauvegarde des paramètres");
+      setError("Erreur lors de la sauvegarde des paramètres: " + (error2 instanceof Error ? error2.message : "Erreur inconnue"));
     }
   };
-  const isCurrentDomainAllowed = () => {
-    try {
-      const savedDomains = localStorage.getItem("quickwallet_autoconnect_domains");
-      const savedAutoConnect = localStorage.getItem("quickwallet_autoconnect_enabled");
-      if (savedAutoConnect !== "true" || !savedDomains) {
-        return false;
-      }
-      const currentDomain = window.location.hostname + (window.location.port ? ":" + window.location.port : "");
-      const allowedDomains = savedDomains.split("\n").map((d) => d.trim()).filter((d) => d.length > 0);
-      return allowedDomains.includes(currentDomain);
-    } catch (error2) {
-      console.error("Erreur lors de la vérification du domaine:", error2);
-      return false;
+  const addCurrentDomain = () => {
+    const currentDomain = secureStorage.getCurrentDomain();
+    const currentDomains = autoConnectDomains.split("\n").map((d) => d.trim()).filter((d) => d.length > 0);
+    if (!currentDomains.includes(currentDomain)) {
+      const newDomains = currentDomains.length > 0 ? autoConnectDomains + "\n" + currentDomain : currentDomain;
+      setAutoConnectDomains(newDomains);
     }
   };
-  const autoConnectWallets = async () => {
-    try {
-      const savedKeys = localStorage.getItem("quickwallet_private_keys");
-      if (!savedKeys) return;
-      const keys = JSON.parse(savedKeys);
-      if (keys.evm) {
-        try {
-          await onConnect("evm", keys.evm);
-        } catch (error2) {
-          console.error("Erreur auto-connexion EVM:", error2);
-        }
-      }
-      if (keys.solana) {
-        try {
-          await onConnect("solana", keys.solana);
-        } catch (error2) {
-          console.error("Erreur auto-connexion Solana:", error2);
-        }
-      }
-    } catch (error2) {
-      console.error("Erreur lors de l'auto-connexion:", error2);
-    }
-  };
-  reactExports.useEffect(() => {
-    if (isCurrentDomainAllowed()) {
-      autoConnectWallets();
-    }
-  }, []);
   if (!isOpen) return null;
   const handleEvmConnect = async () => {
     if (!evmKey) return;
@@ -28047,12 +28150,16 @@ const WalletDialog = ({
       width: "100%",
       minHeight: "100px",
       padding: "12px",
-      border: "1px solid #d1d5db",
+      border: "2px solid #65F152",
       borderRadius: "6px",
       fontSize: "14px",
       fontFamily: "inherit",
       resize: "vertical",
-      outline: "none"
+      outline: "none",
+      backgroundColor: "#ffffff",
+      color: "#000000",
+      boxShadow: "0 2px 4px rgba(101, 241, 82, 0.2)",
+      zIndex: 999999
     },
     settingsSection: {
       marginBottom: "24px",
@@ -28084,6 +28191,24 @@ const WalletDialog = ({
       left: autoConnectEnabled ? "26px" : "2px",
       transition: "all 0.2s",
       boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+    },
+    addDomainButton: {
+      padding: "4px 8px",
+      border: "none",
+      borderRadius: "4px",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: "pointer",
+      backgroundColor: "#65F152",
+      color: "#000",
+      marginLeft: "8px",
+      transition: "all 0.2s"
+    },
+    domainRow: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: "8px"
     }
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -28277,7 +28402,7 @@ const WalletDialog = ({
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: tabStyles.settingsSection, children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.settingLabel, children: "🔑 Gestion des clés privées" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.settingDescription, children: "Sauvegarder ou supprimer les clés privées du localStorage" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.settingDescription, children: "Sauvegarder ou supprimer les clés privées de manière sécurisée (chiffrées dans l'extension)" }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: tabStyles.buttonGroup, children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "button",
@@ -28309,9 +28434,9 @@ const WalletDialog = ({
                 /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.settingLabel, children: "🌐 Auto-connexion par domaine" }),
                 /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: tabStyles.settingDescription, children: [
                   "Activer la connexion automatique pour certains domaines",
-                  isCurrentDomainAllowed() && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { color: "#65F152", fontWeight: "bold", marginTop: "4px" }, children: [
+                  isDomainAllowed && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { color: "#65F152", fontWeight: "bold", marginTop: "4px" }, children: [
                     "✅ Domaine actuel autorisé: ",
-                    window.location.hostname + (window.location.port ? ":" + window.location.port : "")
+                    secureStorage.getCurrentDomain()
                   ] })
                 ] })
               ] }),
@@ -28326,9 +28451,20 @@ const WalletDialog = ({
             ] }),
             autoConnectEnabled && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginTop: "16px" }, children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: tabStyles.settingLabel, children: "Domaines autorisés (un par ligne) :" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: "12px", color: "#6c757d", marginBottom: "8px" }, children: [
-                "Domaine actuel: ",
-                window.location.hostname + (window.location.port ? ":" + window.location.port : "")
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: tabStyles.domainRow, children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: "12px", color: "#6c757d" }, children: [
+                  "Domaine actuel: ",
+                  secureStorage.getCurrentDomain()
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    style: tabStyles.addDomainButton,
+                    onClick: addCurrentDomain,
+                    title: "Ajouter le domaine actuel à la liste",
+                    children: "+ Ajouter"
+                  }
+                )
               ] }),
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "textarea",
@@ -28713,9 +28849,44 @@ const QuickWalletApp = () => {
     connectEVM,
     connectSolana,
     disconnectEVM,
-    disconnectSolana,
-    evmWallet
+    disconnectSolana
   } = useWallet();
+  const handleAutoConnect = async () => {
+    try {
+      const { secureStorage: secureStorage2 } = await __vitePreload(async () => {
+        const { secureStorage: secureStorage3 } = await Promise.resolve().then(() => SecureStorage$1);
+        return { secureStorage: secureStorage3 };
+      }, true ? void 0 : void 0);
+      const keys = await secureStorage2.loadKeys();
+      if (!keys) return;
+      let connectedCount = 0;
+      if (keys.evm) {
+        try {
+          await handleConnect("evm", keys.evm);
+          connectedCount++;
+        } catch (error) {
+          console.error("Erreur auto-connexion EVM:", error);
+        }
+      }
+      if (keys.solana) {
+        try {
+          await handleConnect("solana", keys.solana);
+          connectedCount++;
+        } catch (error) {
+          console.error("Erreur auto-connexion Solana:", error);
+        }
+      }
+      if (connectedCount > 0) {
+        setNotification({
+          show: true,
+          type: "success",
+          message: `🔐 Auto-connexion réussie: ${connectedCount} wallet(s) connecté(s)`
+        });
+      }
+    } catch (error) {
+      console.error("Erreur lors de l'auto-connexion:", error);
+    }
+  };
   const showWallet = () => {
     setIsDialogOpen(true);
   };
@@ -28756,8 +28927,7 @@ const QuickWalletApp = () => {
           } else {
             disconnectEVM();
           }
-        },
-        injectWalletProvider: (_window) => evmWallet.injectWalletProvider(_window)
+        }
       },
       solana: {
         getAddress: () => walletState.solana.address,
@@ -28773,6 +28943,13 @@ const QuickWalletApp = () => {
           }
         }
       }
+    };
+    const handleAutoConnectEvent = () => {
+      handleAutoConnect();
+    };
+    window.addEventListener("QuickWalletAutoConnect", handleAutoConnectEvent);
+    return () => {
+      window.removeEventListener("QuickWalletAutoConnect", handleAutoConnectEvent);
     };
   }, [walletState, connectEVM, connectSolana, disconnectEVM, disconnectSolana]);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
@@ -28835,6 +29012,13 @@ function initializeQuickWallet() {
   window.addEventListener("QuickWalletEvent", (event) => {
     if (event.detail.action === "show-wallet-on-page" && window.QuickWallet) {
       window.QuickWallet.show();
+    } else if (event.detail.action === "auto-connect") {
+      setTimeout(() => {
+        const app = document.querySelector("#quickwallet-react-root");
+        if (app) {
+          window.dispatchEvent(new CustomEvent("QuickWalletAutoConnect"));
+        }
+      }, 100);
     }
   });
 }

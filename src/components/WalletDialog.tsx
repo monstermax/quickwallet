@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 
 import { useWallet } from '../hooks/useWallet'
+import { secureStorage } from '../services/SecureStorage'
 
 import type { WalletDialogProps } from '../types/wallet'
 
@@ -26,6 +27,7 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
     // Nouveaux états pour les fonctionnalités settings
     const [autoConnectDomains, setAutoConnectDomains] = useState('')
     const [autoConnectEnabled, setAutoConnectEnabled] = useState(false)
+    const [isDomainAllowed, setIsDomainAllowed] = useState(false)
 
     useEffect(() => {
         if (isOpen) {
@@ -34,121 +36,101 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
             setError(null)
             setEvmLoading(false)
             setSolanaLoading(false)
-
-            // Charger les paramètres depuis le localStorage
-            const savedDomains = localStorage.getItem('quickwallet_autoconnect_domains')
-            const savedAutoConnect = localStorage.getItem('quickwallet_autoconnect_enabled')
-
-            if (savedDomains) {
-                setAutoConnectDomains(savedDomains)
-            }
-            if (savedAutoConnect) {
-                setAutoConnectEnabled(savedAutoConnect === 'true')
-            }
+            
+            // Charger les paramètres depuis le stockage sécurisé
+            loadAutoConnectSettings()
         }
     }, [isOpen])
 
-    // Fonctions pour gérer les clés privées
-    const handleSaveKeys = () => {
+    // Fonction pour charger les paramètres d'auto-connexion
+    const loadAutoConnectSettings = async () => {
         try {
-            const keys = {
-                evm: walletState.evm.isConnected ? walletState.evm.privateKey : null,
-                solana: walletState.solana.isConnected ? walletState.solana.privateKey : null,
-                timestamp: Date.now()
+            const settings = await secureStorage.loadAutoConnectSettings()
+            if (settings) {
+                setAutoConnectEnabled(settings.enabled)
+                setAutoConnectDomains(settings.domains.join('\n'))
             }
-            localStorage.setItem('quickwallet_private_keys', JSON.stringify(keys))
-            setError(null)
-            setNotification({ show: true, message: 'Clés privées sauvegardées avec succès!', type: 'success' })
-
+            // Vérifier si le domaine actuel est autorisé
+            const currentDomain = secureStorage.getCurrentDomain()
+            const isAllowed = await secureStorage.checkDomainAllowed(currentDomain)
+            setIsDomainAllowed(isAllowed)
         } catch (error) {
-            setError('Erreur lors de la sauvegarde des clés')
+            console.error('Erreur lors du chargement des paramètres:', error)
         }
     }
 
-    const handleDeleteKeys = () => {
+    // Fonctions pour gérer les clés privées de manière sécurisée
+    const handleSaveKeys = async () => {
         try {
-            localStorage.removeItem('quickwallet_private_keys')
+            const keys = {
+                evm: walletState.evm.isConnected && walletState.evm.privateKey ? walletState.evm.privateKey : undefined,
+                solana: walletState.solana.isConnected && walletState.solana.privateKey ? walletState.solana.privateKey : undefined,
+                timestamp: Date.now()
+            }
+            await secureStorage.saveKeys(keys)
             setError(null)
-            setNotification({ show: true, message: 'Clés privées supprimées du localStorage!', type: 'success' })
+            setNotification({ show: true, message: 'Clés privées sauvegardées de manière sécurisée!', type: 'success' })
 
         } catch (error) {
-            setError('Erreur lors de la suppression des clés')
+            setError('Erreur lors de la sauvegarde des clés: ' + (error instanceof Error ? error.message : 'Erreur inconnue'))
+        }
+    }
+
+    const handleDeleteKeys = async () => {
+        try {
+            await secureStorage.deleteKeys()
+            setError(null)
+            setNotification({ show: true, message: 'Clés privées supprimées du stockage sécurisé!', type: 'success' })
+
+        } catch (error) {
+            setError('Erreur lors de la suppression des clés: ' + (error instanceof Error ? error.message : 'Erreur inconnue'))
         }
     }
 
     // Fonction pour sauvegarder les domaines d'auto-connexion
-    const handleSaveAutoConnectSettings = () => {
+    const handleSaveAutoConnectSettings = async () => {
         try {
-            localStorage.setItem('quickwallet_autoconnect_domains', autoConnectDomains)
-            localStorage.setItem('quickwallet_autoconnect_enabled', autoConnectEnabled.toString())
+            const domains = autoConnectDomains.split('\n').map(d => d.trim()).filter(d => d.length > 0)
+            const settings = {
+                enabled: autoConnectEnabled,
+                domains: domains
+            }
+            await secureStorage.saveAutoConnectSettings(settings)
             setError(null)
-            setNotification({ show: true, message: 'Paramètres d\'auto-connexion sauvegardés!', type: 'success' })
+            setNotification({ show: true, message: 'Paramètres d\'auto-connexion sauvegardés de manière sécurisée!', type: 'success' })
 
         } catch (error) {
-            setError('Erreur lors de la sauvegarde des paramètres')
+            setError('Erreur lors de la sauvegarde des paramètres: ' + (error instanceof Error ? error.message : 'Erreur inconnue'))
         }
     }
 
-    // Fonction pour vérifier si le domaine actuel est autorisé
-    const isCurrentDomainAllowed = () => {
+    // Fonction pour ajouter le domaine actuel au textarea
+    const addCurrentDomain = () => {
+        const currentDomain = secureStorage.getCurrentDomain()
+        const currentDomains = autoConnectDomains.split('\n').map(d => d.trim()).filter(d => d.length > 0)
+        
+        // Vérifier si le domaine n'est pas déjà dans la liste
+        if (!currentDomains.includes(currentDomain)) {
+            const newDomains = currentDomains.length > 0
+                ? autoConnectDomains + '\n' + currentDomain
+                : currentDomain
+            setAutoConnectDomains(newDomains)
+        }
+    }
+
+    // Fonction pour vérifier si le domaine actuel est autorisé (utilise le stockage sécurisé)
+    const isCurrentDomainAllowed = async (): Promise<boolean> => {
         try {
-            const savedDomains = localStorage.getItem('quickwallet_autoconnect_domains')
-            const savedAutoConnect = localStorage.getItem('quickwallet_autoconnect_enabled')
-
-            if (savedAutoConnect !== 'true' || !savedDomains) {
-                return false
-            }
-
-            const currentDomain = window.location.hostname + (window.location.port ? ':' + window.location.port : '')
-            const allowedDomains = savedDomains.split('\n').map(d => d.trim()).filter(d => d.length > 0)
-
-            return allowedDomains.includes(currentDomain)
-
+            const currentDomain = secureStorage.getCurrentDomain()
+            return await secureStorage.checkDomainAllowed(currentDomain)
         } catch (error) {
             console.error('Erreur lors de la vérification du domaine:', error)
             return false
         }
     }
 
-    // Fonction pour charger automatiquement les clés privées
-    const autoConnectWallets = async () => {
-        try {
-            const savedKeys = localStorage.getItem('quickwallet_private_keys')
-            if (!savedKeys) return
-
-            const keys = JSON.parse(savedKeys)
-
-            // Auto-connexion EVM
-            if (keys.evm) {
-                try {
-                    await onConnect('evm', keys.evm);
-
-                } catch (error) {
-                    console.error('Erreur auto-connexion EVM:', error)
-                }
-            }
-
-            // Auto-connexion Solana
-            if (keys.solana) {
-                try {
-                    await onConnect('solana', keys.solana);
-
-                } catch (error) {
-                    console.error('Erreur auto-connexion Solana:', error)
-                }
-            }
-
-        } catch (error) {
-            console.error('Erreur lors de l\'auto-connexion:', error)
-        }
-    }
-
-    // Effet pour l'auto-connexion au chargement de la page
-    useEffect(() => {
-        if (isCurrentDomainAllowed()) {
-            autoConnectWallets()
-        }
-    }, []) // Exécuté une seule fois au montage du composant
+    // Note: L'auto-connexion est maintenant gérée par le content script et le script injecté
+    // pour une meilleure sécurité et performance
 
     if (!isOpen) return null
 
@@ -289,12 +271,16 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
             width: '100%',
             minHeight: '100px',
             padding: '12px',
-            border: '1px solid #d1d5db',
+            border: '2px solid #65F152',
             borderRadius: '6px',
             fontSize: '14px',
             fontFamily: 'inherit',
             resize: 'vertical' as const,
-            outline: 'none'
+            outline: 'none',
+            backgroundColor: '#ffffff',
+            color: '#000000',
+            boxShadow: '0 2px 4px rgba(101, 241, 82, 0.2)',
+            zIndex: 999999
         },
         checkbox: {
             width: '18px',
@@ -332,6 +318,24 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
             left: autoConnectEnabled ? '26px' : '2px',
             transition: 'all 0.2s',
             boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+        },
+        addDomainButton: {
+            padding: '4px 8px',
+            border: 'none',
+            borderRadius: '4px',
+            fontSize: '12px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            backgroundColor: '#65F152',
+            color: '#000',
+            marginLeft: '8px',
+            transition: 'all 0.2s'
+        },
+        domainRow: {
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '8px'
         }
     }
 
@@ -553,7 +557,7 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
                         <div style={tabStyles.settingsSection}>
                             <div style={tabStyles.settingLabel}>🔑 Gestion des clés privées</div>
                             <div style={tabStyles.settingDescription}>
-                                Sauvegarder ou supprimer les clés privées du localStorage
+                                Sauvegarder ou supprimer les clés privées de manière sécurisée (chiffrées dans l'extension)
                             </div>
                             <div style={tabStyles.buttonGroup}>
                                 <button
@@ -584,9 +588,9 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
                                     <div style={tabStyles.settingLabel}>🌐 Auto-connexion par domaine</div>
                                     <div style={tabStyles.settingDescription}>
                                         Activer la connexion automatique pour certains domaines
-                                        {isCurrentDomainAllowed() && (
+                                        {isDomainAllowed && (
                                             <div style={{ color: '#65F152', fontWeight: 'bold', marginTop: '4px' }}>
-                                                ✅ Domaine actuel autorisé: {window.location.hostname + (window.location.port ? ':' + window.location.port : '')}
+                                                ✅ Domaine actuel autorisé: {secureStorage.getCurrentDomain()}
                                             </div>
                                         )}
                                     </div>
@@ -602,8 +606,17 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
                             {autoConnectEnabled && (
                                 <div style={{ marginTop: '16px' }}>
                                     <div style={tabStyles.settingLabel}>Domaines autorisés (un par ligne) :</div>
-                                    <div style={{ fontSize: '12px', color: '#6c757d', marginBottom: '8px' }}>
-                                        Domaine actuel: {window.location.hostname + (window.location.port ? ':' + window.location.port : '')}
+                                    <div style={tabStyles.domainRow}>
+                                        <div style={{ fontSize: '12px', color: '#6c757d' }}>
+                                            Domaine actuel: {secureStorage.getCurrentDomain()}
+                                        </div>
+                                        <button
+                                            style={tabStyles.addDomainButton}
+                                            onClick={addCurrentDomain}
+                                            title="Ajouter le domaine actuel à la liste"
+                                        >
+                                            + Ajouter
+                                        </button>
                                     </div>
                                     <textarea
                                         style={tabStyles.textarea}

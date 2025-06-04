@@ -35,6 +35,51 @@ const QuickWalletApp: React.FC = () => {
         evmWallet,
     } = useWallet()
 
+    // Fonction pour l'auto-connexion
+    const handleAutoConnect = async () => {
+        try {
+            // Importer le service de stockage sécurisé
+            const { secureStorage } = await import('../services/SecureStorage')
+            
+            const keys = await secureStorage.loadKeys()
+            if (!keys) return
+
+            let connectedCount = 0
+
+            // Auto-connexion EVM
+            if (keys.evm) {
+                try {
+                    await handleConnect('evm', keys.evm)
+                    connectedCount++
+                } catch (error) {
+                    console.error('Erreur auto-connexion EVM:', error)
+                }
+            }
+
+            // Auto-connexion Solana
+            if (keys.solana) {
+                try {
+                    await handleConnect('solana', keys.solana)
+                    connectedCount++
+                } catch (error) {
+                    console.error('Erreur auto-connexion Solana:', error)
+                }
+            }
+
+            // Afficher une notification si des wallets ont été connectés
+            if (connectedCount > 0) {
+                setNotification({
+                    show: true,
+                    type: 'success',
+                    message: `🔐 Auto-connexion réussie: ${connectedCount} wallet(s) connecté(s)`
+                })
+            }
+
+        } catch (error) {
+            console.error('Erreur lors de l\'auto-connexion:', error)
+        }
+    }
+
     const showWallet = () => {
         setIsDialogOpen(true)
     }
@@ -82,7 +127,7 @@ const QuickWalletApp: React.FC = () => {
     }
 
 
-    // Exposer l'API globale
+    // Exposer l'API globale et écouter l'auto-connexion
     useEffect(() => {
         (window as any).QuickWallet = {
             show: showWallet,
@@ -118,6 +163,17 @@ const QuickWalletApp: React.FC = () => {
                     }
                 }
             }
+        }
+
+        // Écouter l'événement d'auto-connexion
+        const handleAutoConnectEvent = () => {
+            handleAutoConnect()
+        }
+
+        window.addEventListener('QuickWalletAutoConnect', handleAutoConnectEvent)
+
+        return () => {
+            window.removeEventListener('QuickWalletAutoConnect', handleAutoConnectEvent)
         }
     }, [walletState, connectEVM, connectSolana, disconnectEVM, disconnectSolana]);
 
@@ -191,6 +247,15 @@ function initializeQuickWallet() {
     window.addEventListener('QuickWalletEvent', (event: any) => {
         if (event.detail.action === "show-wallet-on-page" && (window as any).QuickWallet) {
             ; (window as any).QuickWallet.show()
+        } else if (event.detail.action === "auto-connect") {
+            // Déclencher l'auto-connexion
+            setTimeout(() => {
+                const app = document.querySelector('#quickwallet-react-root')
+                if (app) {
+                    // Déclencher l'auto-connexion via un événement personnalisé
+                    window.dispatchEvent(new CustomEvent('QuickWalletAutoConnect'))
+                }
+            }, 100)
         }
     })
 }
