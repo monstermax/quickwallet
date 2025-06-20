@@ -26941,8 +26941,10 @@ class RpcService {
       // Soneium Minato
       97: "https://data-seed-prebsc-1-s1.bnbchain.org:8545",
       // BSC Testnet
-      43113: "https://avalanche-fuji.drpc.org"
+      43113: "https://avalanche-fuji.drpc.org",
       // Avalanche Fuji
+      313313: "https://testnet.saharalabs.ai"
+      // Sahara
     });
   }
   getRpcUrl(chainId) {

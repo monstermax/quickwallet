@@ -31,6 +31,7 @@ export class RpcService {
         1946: 'https://rpc.minato.soneium.org',                   // Soneium Minato
         97: 'https://data-seed-prebsc-1-s1.bnbchain.org:8545',    // BSC Testnet
         43113: 'https://avalanche-fuji.drpc.org',                 // Avalanche Fuji
+        313313: 'https://testnet.saharalabs.ai',                  // Sahara
     }
 
     getRpcUrl(chainId: number): string {
