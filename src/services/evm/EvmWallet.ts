@@ -10,9 +10,19 @@ export class EvmWallet {
     private wallet: ethers.Wallet | null = null
     private chainId: number | null = null
     private autoSign: boolean = true
+    private isQuickWalletActive: boolean = false
+    private originalRequest: any = null
 
     constructor() {
-        //this.injectWalletProvider()
+        // Écouter les changements de mode
+        window.addEventListener('QuickWalletModeChange', this.handleModeChange.bind(this))
+    }
+
+    private handleModeChange = (event: CustomEvent) => {
+        if (event.detail.chain === 'evm') {
+            this.isQuickWalletActive = event.detail.active
+            console.log('EVM QuickWallet mode:', this.isQuickWalletActive ? 'ACTIVE' : 'INACTIVE')
+        }
     }
 
     async test() {
@@ -51,66 +61,60 @@ export class EvmWallet {
         _window = _window || window;
         if (!_window.ethereum) return
 
-        // Sauvegarder les méthodes originales
-        const originalRequest = _window.ethereum.request
-        const originalEnable = _window.ethereum.enable
-        const originalSend = _window.ethereum.send
+        // Sauvegarder les méthodes originales une seule fois
+        if (!this.originalRequest) {
+            this.originalRequest = _window.ethereum.request
+        }
 
         // Intercepter ethereum.request
         _window.ethereum.request = async (args: any) => {
-            console.log('ethereum.request intercepted:', args)
+            console.log('ethereum.request intercepted:', args, 'QuickWallet active:', this.isQuickWalletActive)
 
-            switch (args.method) {
-                case 'eth_requestAccounts':
-                    if (this.wallet) {
+            // Seulement traiter avec QuickWallet si le mode est actif ET qu'on a un wallet
+            if (this.isQuickWalletActive && this.wallet) {
+                switch (args.method) {
+                    case 'eth_requestAccounts':
+                        console.log('QuickWallet handling eth_requestAccounts')
                         return [this.wallet.address];
-                    }
-                    break
 
-                case 'eth_sendTransaction':
-                    if (this.wallet) {
+                    case 'eth_sendTransaction':
+                        console.log('QuickWallet handling eth_sendTransaction')
                         return await this.sendTransaction(args);
-                    }
-                    break
 
-                case 'personal_sign':
-                    if (this.wallet) {
+                    case 'personal_sign':
+                        console.log('QuickWallet handling personal_sign')
                         return await this.signMessage(args);
-                    }
-                    break
 
-                case 'eth_signTypedData_v4':
-                    if (this.wallet) {
-                        //return await this.signTypedData(args); // TODO: a debugger
-
-                        //const args2 = { params: [...args.params].reverse() }
-                        //return await this.signMessage(args2); // ce "hack" ne fonctionne pas
-                    }
-                    break
-
-                case 'wallet_addEthereumChain':
-                    if (true) {
-                        const chainId = parseInt(args.params[0].chainId, 16);
-                        this.setChainId(chainId);
+                    case 'eth_signTypedData_v4':
+                        console.log('QuickWallet handling eth_signTypedData_v4')
+                        // return await this.signTypedData(args); // TODO: a debugger
                         break;
-                    }
 
-                case 'wallet_switchEthereumChain':
-                    if (true) {
-                        // Gérer le changement de chaîne
-                        const chainId = parseInt(args.params[0].chainId, 16);
-                        this.setChainId(chainId);
-                        break;
-                    }
+                    case 'wallet_addEthereumChain':
+                        if (true) {
+                            const chainId = parseInt(args.params[0].chainId, 16);
+                            this.setChainId(chainId);
+                            break;
+                        }
 
-                default:
-                    break
+                    case 'wallet_switchEthereumChain':
+                        if (true) {
+                            // Gérer le changement de chaîne
+                            const chainId = parseInt(args.params[0].chainId, 16);
+                            this.setChainId(chainId);
+                            break;
+                        }
+
+                    default:
+                        // Pour les autres méthodes, passer à MetaMask
+                        break
+                }
             }
 
-            // Appeler la méthode originale pour les autres cas
-            const result = await originalRequest.call(_window.ethereum, args);
+            // Appeler la méthode originale pour tous les autres cas
+            const result = await this.originalRequest.call(_window.ethereum, args);
 
-            // Intercepter la réponse pour eth_chainId
+            // Intercepter la réponse pour eth_chainId même en mode MetaMask
             if (args.method === 'eth_chainId') {
                 const chainId = parseInt(result, 16);
                 this.setChainId(chainId);
@@ -133,23 +137,6 @@ export class EvmWallet {
             }
 
             return result
-        }
-
-        // Intercepter les autres méthodes si nécessaire
-        if (originalEnable) {
-            _window.ethereum.enable = async (...args: any[]) => {
-                console.log('ethereum.enable intercepted:', args)
-                // @ts-ignore
-                return originalEnable.apply(_window.ethereum, args)
-            }
-        }
-
-        if (originalSend) {
-            _window.ethereum.send = async (...args: any[]) => {
-                console.log('ethereum.send intercepted:', args)
-                // @ts-ignore
-                return originalSend.apply(_window.ethereum, args)
-            }
         }
     }
 
@@ -282,8 +269,6 @@ export class EvmWallet {
                 parsedData.message
             );
 
-            //const signature = await this.wallet.signMessage(typedData);
-
             console.log('signature:', signature)
 
             return signature;
@@ -294,5 +279,3 @@ export class EvmWallet {
         }
     }
 }
-
-

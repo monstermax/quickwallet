@@ -8,13 +8,22 @@ import * as Noble from '@noble/ed25519';
 export class SolanaWallet {
     private keypair: Keypair | null = null
     private autoSign: boolean = true
+    private isQuickWalletActive: boolean = false
+    private originalProviders: Map<any, any> = new Map()
 
     constructor() {
-        //this.injectWalletProvider()
+        // Écouter les changements de mode
+        window.addEventListener('QuickWalletModeChange', this.handleModeChange.bind(this))
+    }
+
+    private handleModeChange = (event: CustomEvent) => {
+        if (event.detail.chain === 'solana') {
+            this.isQuickWalletActive = event.detail.active
+            console.log('Solana QuickWallet mode:', this.isQuickWalletActive ? 'ACTIVE' : 'INACTIVE')
+        }
     }
 
     setPrivateKey(key: string | null): void {
-
         if (key) {
             try {
                 const secretKey = decode(key)
@@ -39,8 +48,6 @@ export class SolanaWallet {
     }
 
     injectWalletProvider(_window?: Window): void {
-        // Intercepter window.solana
-
         _window = _window || window;
 
         if (_window.solana) {
@@ -54,74 +61,86 @@ export class SolanaWallet {
     }
 
     private interceptSolanaProvider(provider: any): void {
-        const originalConnect = provider.connect
-        const originalSignTransaction = provider.signTransaction
-        const originalSignAllTransactions = provider.signAllTransactions
-        const originalSignMessage = provider.signMessage
-        const originalRequest = provider.request
+        // Sauvegarder les méthodes originales si pas déjà fait
+        if (!this.originalProviders.has(provider)) {
+            this.originalProviders.set(provider, {
+                connect: provider.connect,
+                signTransaction: provider.signTransaction,
+                signAllTransactions: provider.signAllTransactions,
+                signMessage: provider.signMessage,
+                request: provider.request
+            })
+        }
+
+        const original = this.originalProviders.get(provider)
 
         // Intercepter connect
         provider.connect = async (options?: any) => {
-            console.log('solana.connect intercepted:', options)
+            console.log('solana.connect intercepted:', options, 'QuickWallet active:', this.isQuickWalletActive)
 
-            if (this.keypair) {
+            if (this.isQuickWalletActive && this.keypair) {
+                console.log('QuickWallet handling solana.connect')
                 return {
                     publicKey: this.keypair.publicKey
                 }
             }
 
-            return originalConnect?.call(provider, options)
+            return original.connect?.call(provider, options)
         }
 
         // Intercepter signTransaction
         provider.signTransaction = async (transaction: Transaction) => {
-            console.log('solana.signTransaction intercepted:', transaction)
+            console.log('solana.signTransaction intercepted:', transaction, 'QuickWallet active:', this.isQuickWalletActive)
 
-            if (this.keypair) {
+            if (this.isQuickWalletActive && this.keypair) {
+                console.log('QuickWallet handling solana.signTransaction')
                 return this.signTransaction(transaction)
             }
 
-            return originalSignTransaction?.call(provider, transaction)
+            return original.signTransaction?.call(provider, transaction)
         }
 
         // Intercepter signAllTransactions
         provider.signAllTransactions = async (transactions: Transaction[]) => {
-            console.log('solana.signAllTransactions intercepted:', transactions)
+            console.log('solana.signAllTransactions intercepted:', transactions, 'QuickWallet active:', this.isQuickWalletActive)
 
-            if (this.keypair) {
-                const signedTransactions = []
+            if (this.isQuickWalletActive && this.keypair) {
+                console.log('QuickWallet handling solana.signAllTransactions')
+                const signedTransactions: Transaction[] = []
                 for (const tx of transactions) {
                     signedTransactions.push(await this.signTransaction(tx))
                 }
                 return signedTransactions
             }
 
-            return originalSignAllTransactions?.call(provider, transactions)
+            return original.signAllTransactions?.call(provider, transactions)
         }
 
         // Intercepter signMessage
         provider.signMessage = async (message: Uint8Array, encoding?: string) => {
-            console.log('solana.signMessage intercepted:', message, encoding)
+            console.log('solana.signMessage intercepted:', message, encoding, 'QuickWallet active:', this.isQuickWalletActive)
 
-            if (this.keypair) {
+            if (this.isQuickWalletActive && this.keypair) {
+                console.log('QuickWallet handling solana.signMessage')
                 return this.signMessage(message, encoding)
             }
 
-            return originalSignMessage?.call(provider, message, encoding)
+            return original.signMessage?.call(provider, message, encoding)
         }
 
         // Intercepter request
-        if (originalRequest) {
+        if (original.request) {
             provider.request = async (request: any) => {
-                console.log('solana.request intercepted:', request)
+                console.log('solana.request intercepted:', request, 'QuickWallet active:', this.isQuickWalletActive)
 
-                if (request.method === 'connect' && this.keypair) {
+                if (request.method === 'connect' && this.isQuickWalletActive && this.keypair) {
+                    console.log('QuickWallet handling solana.request connect')
                     return {
                         publicKey: this.keypair.publicKey
                     }
                 }
 
-                return originalRequest.call(provider, request)
+                return original.request.call(provider, request)
             }
         }
     }
@@ -171,7 +190,6 @@ export class SolanaWallet {
             }
 
             // Utiliser la fonction de signature de nacl (incluse dans @solana/web3.js)
-            //const { sign } = await import('@noble/ed25519')
             const signature = await Noble.sign(messageBytes, this.keypair.secretKey.slice(0, 32))
 
             return {
@@ -184,4 +202,3 @@ export class SolanaWallet {
         }
     }
 }
-

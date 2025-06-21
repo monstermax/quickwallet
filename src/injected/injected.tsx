@@ -33,6 +33,7 @@ const QuickWalletApp: React.FC = () => {
         disconnectEVM,
         disconnectSolana,
         evmWallet,
+        solanaWallet,
     } = useWallet()
 
     // Fonction pour l'auto-connexion
@@ -88,26 +89,10 @@ const QuickWalletApp: React.FC = () => {
         try {
             if (chain === 'evm') {
                 connectEVM(privateKey);
-                //evmWallet.test();
 
             } else {
                 connectSolana(privateKey);
             }
-
-            /*
-            setTimeout(() => {
-                setNotification({
-                    show: true,
-                    type: 'success',
-                    message: `
-            <div><b>QuickWallet React</b></div>
-            <br />
-            <div>🦊 EVM: ${walletState.evm.isConnected ? '🟢 Connected' : '🔴 Not connected'}</div>
-            <div>👾 Solana: ${walletState.solana.isConnected ? '🟢 Connected' : '🔴 Not connected'}</div>
-          `
-                })
-            }, 100)
-            */
 
         } catch (error) {
             setNotification({
@@ -126,6 +111,22 @@ const QuickWalletApp: React.FC = () => {
         }
     }
 
+    // Écouter les événements de changement de mode
+    useEffect(() => {
+        const handleModeChange = (event: CustomEvent) => {
+            const { chain, mode, active } = event.detail
+            console.log(`Mode change received: ${chain} -> ${mode} (${active ? 'active' : 'inactive'})`)
+            
+            // Passer l'événement aux services wallet (ils ont leurs propres listeners)
+            // Pas besoin de faire quoi que ce soit ici, les services écoutent directement
+        }
+
+        window.addEventListener('QuickWalletModeChange', handleModeChange as EventListener)
+
+        return () => {
+            window.removeEventListener('QuickWalletModeChange', handleModeChange as EventListener)
+        }
+    }, [])
 
     // Exposer l'API globale et écouter l'auto-connexion
     useEffect(() => {
@@ -266,4 +267,3 @@ window.addEventListener('load', (event: any) => {
     // Lancer l'initialisation
     initializeQuickWallet()
 });
-
