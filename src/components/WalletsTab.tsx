@@ -381,6 +381,7 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
 
     const handleAddSolanaWallet = async () => {
         if (!newSolanaKey || !newSolanaName) return
+        console.log('Adding Solana wallet:', newSolanaName, 'Save:', newSolanaSave)
 
         try {
             const validKey = validateSolanaPrivateKey(newSolanaKey)
@@ -397,9 +398,9 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
             const keypair = Keypair.fromSecretKey(secretKey)
             const address = keypair.publicKey.toBase58()
 
-            // Vérifier si le wallet existe déjà
-            const existingWallets = JSON.parse(localStorage.getItem('quickwallet-temp-wallets') || '[]') as StoredWallet[]
-            const existingWallet = existingWallets.find(w => w.address === address && w.type === 'solana')
+            // Vérifier si le wallet existe déjà (dans les deux listes)
+            const allSolanaWallets = [...solanaWallets, ...tempSolanaWallets]
+            const existingWallet = allSolanaWallets.find(w => w.address === address)
 
             if (existingWallet) {
                 setNotification({
@@ -410,6 +411,11 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
                 return
             }
 
+            // Connecter le nouveau wallet
+            setSolanaKey(validKey)
+            await onSolanaConnect()
+            console.log('Connected Solana wallet')
+
             const newWallet: StoredWallet = {
                 id: 'solana-' + Date.now(),
                 name: newSolanaName,
@@ -419,29 +425,42 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
                 timestamp: Date.now()
             }
 
-            // Ajouter à la liste existante
-            const updatedWallets = [...existingWallets, newWallet]
-            localStorage.setItem('quickwallet-temp-wallets', JSON.stringify(updatedWallets))
-
-            // Connecter le nouveau wallet
-            setSolanaKey(validKey)
-            await onSolanaConnect()
+            if (newSolanaSave) {
+                // Sauvegarder de manière sécurisée via le background
+                try {
+                    await secureStorage.addWallet(newWallet)
+                    console.log('Saved wallet securely')
+                    await loadWallets() // Recharger depuis le stockage sécurisé
+                } catch (error) {
+                    console.error('Error saving wallet securely:', error)
+                    setNotification({
+                        show: true,
+                        message: 'Erreur lors de la sauvegarde sécurisée. Wallet connecté temporairement.',
+                        type: 'warning'
+                    })
+                    // Ajouter en temporaire si la sauvegarde sécurisée échoue
+                    setTempSolanaWallets(prev => [...prev, newWallet])
+                }
+            } else {
+                // Ajouter seulement en mémoire (temporaire)
+                setTempSolanaWallets(prev => [...prev, newWallet])
+                console.log('Added wallet to temporary memory')
+            }
 
             setNewSolanaKey('')
             setNewSolanaName('')
+            setNewSolanaSave(false)
             setShowAddSolana(false)
             setNotification({
                 show: true,
-                message: 'Wallet Solana ajouté et connecté avec succès',
+                message: newSolanaSave ? 'Wallet Solana sauvegardé et connecté avec succès' : 'Wallet Solana connecté temporairement',
                 type: 'success'
             })
-
-            // Recharger la liste
-            await loadWallets()
         } catch (error) {
+            console.error('Error in handleAddSolanaWallet:', error)
             setNotification({
                 show: true,
-                message: 'Erreur lors de l\'ajout du wallet Solana',
+                message: 'Erreur lors de l\'ajout du wallet Solana: ' + (error instanceof Error ? error.message : 'Erreur inconnue'),
                 type: 'error'
             })
         }
@@ -449,22 +468,53 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
 
     const handleRemoveWallet = async (walletId: string, type: 'evm' | 'solana') => {
         try {
-            // Supprimer de localStorage
-            const existingWallets = JSON.parse(localStorage.getItem('quickwallet-temp-wallets') || '[]') as StoredWallet[]
-            const updatedWallets = existingWallets.filter(w => w.id !== walletId)
-            localStorage.setItem('quickwallet-temp-wallets', JSON.stringify(updatedWallets))
+            // Trouver le wallet à supprimer dans les listes appropriées
+            const allWallets = type === 'evm' ? [...evmWallets, ...tempEvmWallets] : [...solanaWallets, ...tempSolanaWallets]
+            const walletToRemove = allWallets.find(w => w.id === walletId)
+            
+            if (!walletToRemove) {
+                setNotification({
+                    show: true,
+                    message: 'Wallet non trouvé',
+                    type: 'error'
+                })
+                return
+            }
 
             // Si c'est le wallet connecté, le déconnecter
-            const walletToRemove = existingWallets.find(w => w.id === walletId)
-            if (walletToRemove) {
-                if (type === 'evm' && walletState.evm.isConnected && walletState.evm.address === walletToRemove.address) {
-                    handleDisconnect('evm')
+            if (type === 'evm' && walletState.evm.isConnected && walletState.evm.address === walletToRemove.address) {
+                handleDisconnect('evm')
+            }
+            if (type === 'solana' && walletState.solana.isConnected && walletState.solana.address === walletToRemove.address) {
+                handleDisconnect('solana')
+            }
+
+            // Vérifier si c'est un wallet sécurisé ou temporaire
+            const isSecureWallet = type === 'evm' ? evmWallets.find(w => w.id === walletId) : solanaWallets.find(w => w.id === walletId)
+            
+            if (isSecureWallet) {
+                // Supprimer du stockage sécurisé
+                try {
+                    await secureStorage.removeWallet(walletId)
+                    console.log('Removed wallet from secure storage')
+                } catch (error) {
+                    console.error('Error removing from secure storage:', error)
+                    setNotification({
+                        show: true,
+                        message: 'Erreur lors de la suppression du stockage sécurisé',
+                        type: 'warning'
+                    })
                 }
-                if (type === 'solana' && walletState.solana.isConnected && walletState.solana.address === walletToRemove.address) {
-                    handleDisconnect('solana')
+            } else {
+                // Supprimer des wallets temporaires
+                if (type === 'evm') {
+                    setTempEvmWallets(prev => prev.filter(w => w.id !== walletId))
+                } else {
+                    setTempSolanaWallets(prev => prev.filter(w => w.id !== walletId))
                 }
             }
 
+            // Recharger les wallets
             await loadWallets()
 
             // Réinitialiser la sélection
@@ -480,6 +530,7 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
                 type: 'info'
             })
         } catch (error) {
+            console.error('Error in handleRemoveWallet:', error)
             setNotification({
                 show: true,
                 message: 'Erreur lors de la suppression du wallet',
@@ -501,439 +552,541 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
                 </div>
             )}
 
-            {/* EVM Section */}
-            <div style={mainStyles.section}>
-                <label style={mainStyles.label}>
-                    🦊 EVM Networks (Ethereum, Polygon, BSC, Arbitrum...)
-                </label>
-
-                {/* Statut de connexion */}
-                {walletState.evm.isConnected && (
-                    <div style={{
-                        padding: '12px',
-                        backgroundColor: '#e8f5e8',
-                        border: '1px solid #65F152',
-                        borderRadius: 8,
-                        marginBottom: 12
-                    }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                                <div>
-                                    <span style={mainStyles.badge}>🟢 Connected</span>
-                                    {walletState.evm.chainId && (
-                                        <span style={{ ...mainStyles.badge, backgroundColor: '#6c757d', color: '#fff' }}>
-                                            Chain {walletState.evm.chainId}
-                                        </span>
-                                    )}
-                                </div>
-                                <div style={mainStyles.address}>
-                                    {truncateAddress(walletState.evm.address || '')}
-                                </div>
+            {/* EVM Section - Compact Design */}
+            <div style={{
+                ...mainStyles.section,
+                border: '1px solid #e0e0e0',
+                borderRadius: 8,
+                padding: '16px',
+                marginBottom: 16
+            }}>
+                {/* Header avec statut */}
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 12,
+                    paddingBottom: 8,
+                    borderBottom: '1px solid #f0f0f0'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 18 }}>🦊</span>
+                        <span style={{ fontWeight: 'bold', fontSize: 16 }}>EVM Networks</span>
+                        {walletState.evm.isConnected && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{
+                                    ...mainStyles.badge,
+                                    backgroundColor: '#e8f5e8',
+                                    color: '#2d5a2d',
+                                    border: '1px solid #65F152',
+                                    fontSize: 11,
+                                    padding: '2px 6px'
+                                }}>
+                                    🟢 {truncateAddress(walletState.evm.address || '', 4, 3)}
+                                </span>
+                                {walletState.evm.chainId && (
+                                    <span style={{
+                                        ...mainStyles.badge,
+                                        backgroundColor: '#6c757d',
+                                        color: '#fff',
+                                        fontSize: 11,
+                                        padding: '2px 6px'
+                                    }}>
+                                        Chain {walletState.evm.chainId}
+                                    </span>
+                                )}
                             </div>
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                    <select
-                                        value={evmMode}
-                                        onChange={e => handleEvmModeChange(e.target.value as QuickwalletMode)}
-                                        style={{
-                                            padding: '6px 12px',
-                                            borderRadius: 4,
-                                            border: '1px solid #65F152',
-                                            fontSize: 14,
-                                            marginBottom: 2,
-                                            minWidth: 140,
-                                            background: '#fff',
-                                            color: '#111'
-                                        }}
-                                        disabled={isAnyLoading}
-                                    >
-                                        <option value="classic">Classic (MetaMask)</option>
-                                        <option value="quickwallet-manual">QuickWallet (manual-sign)</option>
-                                        <option value="quickwallet-auto">QuickWallet (auto-sign)</option>
-                                        <option value="quickwallet-external-sign">QuickWallet (external-sign)</option>
-                                        <option value="quickwallet-external-tx">QuickWallet (external-tx)</option>
-                                    </select>
-                                    {isConnectedOnTabEvm && (
-                                        <span style={{
-                                            background: '#65F152',
-                                            color: '#000',
-                                            fontWeight: 'bold',
-                                            borderRadius: 4,
-                                            padding: '2px 8px',
-                                            fontSize: 12
-                                        }}>
-                                            QuickWallet Active
-                                        </span>
-                                    )}
-                                </div>
-                                <button
-                                    type="button"
-                                    style={{ ...mainStyles.button, ...mainStyles.dangerButton }}
-                                    onClick={() => handleDisconnect('evm')}
-                                    disabled={isAnyLoading}
-                                >
-                                    Disconnect
-                                </button>
-                            </div>
-                        </div>
+                        )}
                     </div>
-                )}
-
-                {/* Sélection de wallet (toujours visible) */}
-                <div>
-                    {evmWallets.length > 0 ? (
-                        <div style={mainStyles.inputGroup}>
-                            <span style={mainStyles.inputIcon}>🔑</span>
+                    
+                    {/* Actions rapides */}
+                    {walletState.evm.isConnected && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <select
-                                style={mainStyles.input}
+                                value={evmMode}
+                                onChange={e => handleEvmModeChange(e.target.value as QuickwalletMode)}
+                                style={{
+                                    padding: '4px 8px',
+                                    borderRadius: 4,
+                                    border: '1px solid #ddd',
+                                    fontSize: 12,
+                                    background: '#fff'
+                                }}
+                                disabled={isAnyLoading}
+                            >
+                                <option value="classic">Classic</option>
+                                <option value="quickwallet-manual">Manual</option>
+                                <option value="quickwallet-auto">Auto</option>
+                                <option value="quickwallet-external-sign">Ext-Sign</option>
+                                <option value="quickwallet-external-tx">Ext-TX</option>
+                            </select>
+                            {isConnectedOnTabEvm && (
+                                <span style={{
+                                    background: '#65F152',
+                                    color: '#000',
+                                    fontWeight: 'bold',
+                                    borderRadius: 3,
+                                    padding: '2px 6px',
+                                    fontSize: 10
+                                }}>
+                                    QW
+                                </span>
+                            )}
+                            <button
+                                type="button"
+                                style={{
+                                    ...mainStyles.button,
+                                    ...mainStyles.dangerButton,
+                                    padding: '4px 8px',
+                                    fontSize: 12
+                                }}
+                                onClick={() => handleDisconnect('evm')}
+                                disabled={isAnyLoading}
+                            >
+                                ✖
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Sélection et connexion compacte */}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                    {(evmWallets.length > 0 || tempEvmWallets.length > 0) ? (
+                        <>
+                            <select
+                                style={{
+                                    ...mainStyles.input,
+                                    flex: 1,
+                                    minWidth: 0,
+                                    fontSize: 14
+                                }}
                                 value={selectedEvmWallet}
                                 onChange={(e) => setSelectedEvmWallet(e.target.value)}
                                 disabled={isAnyLoading}
                             >
-                                <option value="">Sélectionner un wallet EVM...</option>
+                                <option value="">Choisir un wallet EVM...</option>
                                 {[...evmWallets, ...tempEvmWallets].map(wallet => (
                                     <option key={wallet.id} value={wallet.id}>
-                                        {wallet.name} ({truncateAddress(wallet.address)})
-                                        {walletState.evm.isConnected && walletState.evm.address === wallet.address ? ' ✓ Connecté' : ''}
+                                        {wallet.name} ({truncateAddress(wallet.address, 4, 3)})
+                                        {walletState.evm.isConnected && walletState.evm.address === wallet.address ? ' ✓' : ''}
                                     </option>
                                 ))}
                             </select>
                             <button
                                 type="button"
                                 style={{
-                                    ...mainStyles.inputButton,
+                                    ...mainStyles.button,
+                                    ...mainStyles.primaryButton,
+                                    padding: '8px 12px',
+                                    fontSize: 14,
+                                    minWidth: 80,
                                     ...((!selectedEvmWallet || evmLoading) && mainStyles.disabledButton)
                                 }}
                                 onClick={handleEvmConnect}
                                 disabled={!selectedEvmWallet || isAnyLoading}
                             >
-                                {evmLoading ? (
-                                    <span style={mainStyles.loadingContent}>
-                                        <span style={mainStyles.spinner} />
-                                    </span>
-                                ) : (
-                                    walletState.evm.isConnected ? 'Switch' : 'Connect'
-                                )}
+                                {evmLoading ? '⏳' : (walletState.evm.isConnected ? 'Switch' : 'Connect')}
                             </button>
-                        </div>
+                        </>
                     ) : (
-                        <div style={{ textAlign: 'center', padding: '20px', color: '#6c757d' }}>
-                            Aucun wallet EVM enregistré
+                        <div style={{
+                            flex: 1,
+                            textAlign: 'center',
+                            padding: '12px',
+                            color: '#6c757d',
+                            fontSize: 14,
+                            fontStyle: 'italic'
+                        }}>
+                            Aucun wallet EVM configuré
                         </div>
                     )}
+                    
+                    <button
+                        type="button"
+                        style={{
+                            ...mainStyles.button,
+                            ...mainStyles.secondaryButton,
+                            padding: '8px 12px',
+                            fontSize: 14,
+                            minWidth: 80
+                        }}
+                        onClick={() => setShowAddEvm(!showAddEvm)}
+                        disabled={isAnyLoading}
+                    >
+                        {showAddEvm ? 'Annuler' : '+ Ajouter'}
+                    </button>
+                </div>
 
-                    <div style={{ marginTop: 12 }}>
-                        {!showAddEvm ? (
+                {/* Formulaire d'ajout compact */}
+                {showAddEvm && (
+                    <div style={{
+                        backgroundColor: '#f8f9fa',
+                        border: '1px solid #e9ecef',
+                        borderRadius: 6,
+                        padding: 12,
+                        marginBottom: 8
+                    }}>
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                            <input
+                                style={{
+                                    ...mainStyles.input,
+                                    flex: 1,
+                                    fontSize: 14
+                                }}
+                                type="text"
+                                placeholder="Nom du wallet"
+                                value={newEvmName}
+                                onChange={(e) => setNewEvmName(e.target.value)}
+                                disabled={isAnyLoading}
+                            />
+                            <input
+                                style={{
+                                    ...mainStyles.input,
+                                    flex: 2,
+                                    fontSize: 14
+                                }}
+                                type="password"
+                                placeholder="Clé privée EVM (0x...)"
+                                value={newEvmKey}
+                                onChange={(e) => setNewEvmKey(e.target.value)}
+                                disabled={isAnyLoading}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', fontSize: 12, color: '#6c757d' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={newEvmSave}
+                                    onChange={(e) => setNewEvmSave(e.target.checked)}
+                                    style={{ marginRight: 6 }}
+                                    disabled={isAnyLoading}
+                                />
+                                Sauvegarder
+                            </label>
                             <button
                                 type="button"
-                                style={{ ...mainStyles.button, ...mainStyles.secondaryButton }}
-                                onClick={() => setShowAddEvm(true)}
-                                disabled={isAnyLoading}
+                                style={{
+                                    ...mainStyles.button,
+                                    ...mainStyles.primaryButton,
+                                    padding: '6px 12px',
+                                    fontSize: 14
+                                }}
+                                onClick={handleAddEvmWallet}
+                                disabled={!newEvmKey || !newEvmName || isAnyLoading}
                             >
-                                + Ajouter un wallet EVM
+                                Ajouter
                             </button>
-                        ) : (
-                            <div style={{ border: '1px solid #ddd', borderRadius: 8, padding: 16, marginTop: 8 }}>
-                                <div style={{ marginBottom: 12 }}>
-                                    <input
-                                        style={{ ...mainStyles.input, marginBottom: 8 }}
-                                        type="text"
-                                        placeholder="Nom du wallet (ex: Mon Wallet Principal)"
-                                        value={newEvmName}
-                                        onChange={(e) => setNewEvmName(e.target.value)}
-                                        disabled={isAnyLoading}
-                                    />
-                                    <input
-                                        style={mainStyles.input}
-                                        type="password"
-                                        placeholder="Clé privée EVM (0x123abc...)"
-                                        value={newEvmKey}
-                                        onChange={(e) => setNewEvmKey(e.target.value)}
-                                        disabled={isAnyLoading}
-                                    />
-                                </div>
-                                <div style={{ display: 'flex', gap: 8 }}>
-                                    <button
-                                        type="button"
-                                        style={{ ...mainStyles.button, ...mainStyles.primaryButton }}
-                                        onClick={handleAddEvmWallet}
-                                        disabled={!newEvmKey || !newEvmName || isAnyLoading}
-                                    >
-                                        Ajouter
-                                    </button>
-                                    <button
-                                        type="button"
-                                        style={{ ...mainStyles.button, ...mainStyles.secondaryButton }}
-                                        onClick={() => {
-                                            setShowAddEvm(false)
-                                            setNewEvmKey('')
-                                            setNewEvmName('')
-                                        }}
-                                        disabled={isAnyLoading}
-                                    >
-                                        Annuler
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                        </div>
                     </div>
+                )}
 
-                    {evmWallets.length > 0 && (
-                        <div style={{ marginTop: 16 }}>
-                            <div style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 8 }}>Wallets EVM enregistrés:</div>
-                            {evmWallets.map(wallet => (
+                {/* Liste des wallets compacte */}
+                {(evmWallets.length > 0 || tempEvmWallets.length > 0) && (
+                    <div style={{ fontSize: 12 }}>
+                        <div style={{ color: '#6c757d', marginBottom: 4, fontWeight: 'bold' }}>
+                            Wallets configurés ({evmWallets.length + tempEvmWallets.length}):
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            {[...evmWallets, ...tempEvmWallets].map(wallet => (
                                 <div key={wallet.id} style={{
                                     display: 'flex',
-                                    justifyContent: 'space-between',
                                     alignItems: 'center',
-                                    padding: '8px 12px',
-                                    border: '1px solid #eee',
+                                    gap: 4,
+                                    padding: '4px 8px',
+                                    border: '1px solid #ddd',
                                     borderRadius: 4,
-                                    marginBottom: 4,
-                                    backgroundColor: walletState.evm.isConnected && walletState.evm.address === wallet.address ? '#e8f5e8' : '#f9f9f9'
+                                    fontSize: 11,
+                                    backgroundColor: walletState.evm.isConnected && walletState.evm.address === wallet.address ? '#e8f5e8' : '#fff'
                                 }}>
-                                    <div>
-                                        <div style={{ fontWeight: 'bold' }}>
-                                            {wallet.name}
-                                            {walletState.evm.isConnected && walletState.evm.address === wallet.address && (
-                                                <span style={{ color: '#65F152', marginLeft: 8 }}>✓ Connecté</span>
-                                            )}
-                                        </div>
-                                        <div style={{ fontSize: 12, color: '#6c757d' }}>{truncateAddress(wallet.address)}</div>
-                                    </div>
+                                    <span style={{ fontWeight: 'bold' }}>{wallet.name}</span>
+                                    <span style={{ color: '#6c757d' }}>({truncateAddress(wallet.address, 3, 2)})</span>
+                                    {walletState.evm.isConnected && walletState.evm.address === wallet.address && (
+                                        <span style={{ color: '#65F152' }}>✓</span>
+                                    )}
                                     <button
                                         type="button"
                                         style={{
-                                            ...mainStyles.button,
-                                            ...mainStyles.dangerButton,
-                                            padding: '4px 8px',
-                                            fontSize: 12
+                                            background: 'none',
+                                            border: 'none',
+                                            color: '#dc3545',
+                                            cursor: 'pointer',
+                                            padding: 0,
+                                            fontSize: 10
                                         }}
                                         onClick={() => handleRemoveWallet(wallet.id, 'evm')}
                                         disabled={isAnyLoading}
+                                        title="Supprimer"
                                     >
                                         ✖
                                     </button>
                                 </div>
                             ))}
                         </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Solana Section */}
-            <div style={mainStyles.section}>
-                <label style={mainStyles.label}>
-                    👾 Solana Network
-                </label>
-
-                {/* Statut de connexion */}
-                {walletState.solana.isConnected && (
-                    <div style={{
-                        padding: '12px',
-                        backgroundColor: '#e8f5e8',
-                        border: '1px solid #65F152',
-                        borderRadius: 8,
-                        marginBottom: 12
-                    }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                                <div>
-                                    <span style={mainStyles.badge}>🟢 Connected</span>
-                                </div>
-                                <div style={mainStyles.address}>
-                                    {truncateAddress(walletState.solana.address || '')}
-                                </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                    <select
-                                        value={solanaMode}
-                                        onChange={e => handleSolanaModeChange(e.target.value as QuickwalletMode)}
-                                        style={{
-                                            padding: '6px 12px',
-                                            borderRadius: 4,
-                                            border: '1px solid #65F152',
-                                            fontSize: 14,
-                                            marginBottom: 2,
-                                            minWidth: 140,
-                                            background: '#fff',
-                                            color: '#111'
-                                        }}
-                                        disabled={isAnyLoading}
-                                    >
-                                        <option value="classic">Classic (Phantom)</option>
-                                        <option value="quickwallet-manual">QuickWallet (manual-sign)</option>
-                                        <option value="quickwallet-auto">QuickWallet (auto-sign)</option>
-                                        <option value="quickwallet-external-sign">QuickWallet (external-sign)</option>
-                                        <option value="quickwallet-external-tx">QuickWallet (external-tx)</option>
-                                    </select>
-                                    {isConnectedOnTabSolana && (
-                                        <span style={{
-                                            background: '#65F152',
-                                            color: '#000',
-                                            fontWeight: 'bold',
-                                            borderRadius: 4,
-                                            padding: '2px 8px',
-                                            fontSize: 12
-                                        }}>
-                                            QuickWallet Active
-                                        </span>
-                                    )}
-                                </div>
-                                <button
-                                    type="button"
-                                    style={{ ...mainStyles.button, ...mainStyles.dangerButton }}
-                                    onClick={() => handleDisconnect('solana')}
-                                    disabled={isAnyLoading}
-                                >
-                                    Disconnect
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 )}
+            </div>
 
-                {/* Sélection de wallet (toujours visible) */}
-                <div>
-                    {solanaWallets.length > 0 ? (
-                        <div style={mainStyles.inputGroup}>
-                            <span style={mainStyles.inputIcon}>🔑</span>
+            {/* Solana Section - Compact Design */}
+            <div style={{
+                ...mainStyles.section,
+                border: '1px solid #e0e0e0',
+                borderRadius: 8,
+                padding: '16px',
+                marginBottom: 16
+            }}>
+                {/* Header avec statut */}
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 12,
+                    paddingBottom: 8,
+                    borderBottom: '1px solid #f0f0f0'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 18 }}>👾</span>
+                        <span style={{ fontWeight: 'bold', fontSize: 16 }}>Solana Network</span>
+                        {walletState.solana.isConnected && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{
+                                    ...mainStyles.badge,
+                                    backgroundColor: '#e8f5e8',
+                                    color: '#2d5a2d',
+                                    border: '1px solid #65F152',
+                                    fontSize: 11,
+                                    padding: '2px 6px'
+                                }}>
+                                    🟢 {truncateAddress(walletState.solana.address || '', 4, 3)}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                    
+                    {/* Actions rapides */}
+                    {walletState.solana.isConnected && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <select
-                                style={mainStyles.input}
+                                value={solanaMode}
+                                onChange={e => handleSolanaModeChange(e.target.value as QuickwalletMode)}
+                                style={{
+                                    padding: '4px 8px',
+                                    borderRadius: 4,
+                                    border: '1px solid #ddd',
+                                    fontSize: 12,
+                                    background: '#fff'
+                                }}
+                                disabled={isAnyLoading}
+                            >
+                                <option value="classic">Classic</option>
+                                <option value="quickwallet-manual">Manual</option>
+                                <option value="quickwallet-auto">Auto</option>
+                                <option value="quickwallet-external-sign">Ext-Sign</option>
+                                <option value="quickwallet-external-tx">Ext-TX</option>
+                            </select>
+                            {isConnectedOnTabSolana && (
+                                <span style={{
+                                    background: '#65F152',
+                                    color: '#000',
+                                    fontWeight: 'bold',
+                                    borderRadius: 3,
+                                    padding: '2px 6px',
+                                    fontSize: 10
+                                }}>
+                                    QW
+                                </span>
+                            )}
+                            <button
+                                type="button"
+                                style={{
+                                    ...mainStyles.button,
+                                    ...mainStyles.dangerButton,
+                                    padding: '4px 8px',
+                                    fontSize: 12
+                                }}
+                                onClick={() => handleDisconnect('solana')}
+                                disabled={isAnyLoading}
+                            >
+                                ✖
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Sélection et connexion compacte */}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                    {(solanaWallets.length > 0 || tempSolanaWallets.length > 0) ? (
+                        <>
+                            <select
+                                style={{
+                                    ...mainStyles.input,
+                                    flex: 1,
+                                    minWidth: 0,
+                                    fontSize: 14
+                                }}
                                 value={selectedSolanaWallet}
                                 onChange={(e) => setSelectedSolanaWallet(e.target.value)}
                                 disabled={isAnyLoading}
                             >
-                                <option value="">Sélectionner un wallet Solana...</option>
+                                <option value="">Choisir un wallet Solana...</option>
                                 {[...solanaWallets, ...tempSolanaWallets].map(wallet => (
                                     <option key={wallet.id} value={wallet.id}>
-                                        {wallet.name} ({truncateAddress(wallet.address)})
-                                        {walletState.solana.isConnected && walletState.solana.address === wallet.address ? ' ✓ Connecté' : ''}
+                                        {wallet.name} ({truncateAddress(wallet.address, 4, 3)})
+                                        {walletState.solana.isConnected && walletState.solana.address === wallet.address ? ' ✓' : ''}
                                     </option>
                                 ))}
                             </select>
                             <button
                                 type="button"
                                 style={{
-                                    ...mainStyles.inputButton,
+                                    ...mainStyles.button,
+                                    ...mainStyles.primaryButton,
+                                    padding: '8px 12px',
+                                    fontSize: 14,
+                                    minWidth: 80,
                                     ...((!selectedSolanaWallet || solanaLoading) && mainStyles.disabledButton)
                                 }}
                                 onClick={handleSolanaConnect}
                                 disabled={!selectedSolanaWallet || isAnyLoading}
                             >
-                                {solanaLoading ? (
-                                    <span style={mainStyles.loadingContent}>
-                                        <span style={mainStyles.spinner} />
-                                    </span>
-                                ) : (
-                                    walletState.solana.isConnected ? 'Switch' : 'Connect'
-                                )}
+                                {solanaLoading ? '⏳' : (walletState.solana.isConnected ? 'Switch' : 'Connect')}
                             </button>
-                        </div>
+                        </>
                     ) : (
-                        <div style={{ textAlign: 'center', padding: '20px', color: '#6c757d' }}>
-                            Aucun wallet Solana enregistré
+                        <div style={{
+                            flex: 1,
+                            textAlign: 'center',
+                            padding: '12px',
+                            color: '#6c757d',
+                            fontSize: 14,
+                            fontStyle: 'italic'
+                        }}>
+                            Aucun wallet Solana configuré
                         </div>
                     )}
+                    
+                    <button
+                        type="button"
+                        style={{
+                            ...mainStyles.button,
+                            ...mainStyles.secondaryButton,
+                            padding: '8px 12px',
+                            fontSize: 14,
+                            minWidth: 80
+                        }}
+                        onClick={() => setShowAddSolana(!showAddSolana)}
+                        disabled={isAnyLoading}
+                    >
+                        {showAddSolana ? 'Annuler' : '+ Ajouter'}
+                    </button>
+                </div>
 
-                    <div style={{ marginTop: 12 }}>
-                        {!showAddSolana ? (
+                {/* Formulaire d'ajout compact */}
+                {showAddSolana && (
+                    <div style={{
+                        backgroundColor: '#f8f9fa',
+                        border: '1px solid #e9ecef',
+                        borderRadius: 6,
+                        padding: 12,
+                        marginBottom: 8
+                    }}>
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                            <input
+                                style={{
+                                    ...mainStyles.input,
+                                    flex: 1,
+                                    fontSize: 14
+                                }}
+                                type="text"
+                                placeholder="Nom du wallet"
+                                value={newSolanaName}
+                                onChange={(e) => setNewSolanaName(e.target.value)}
+                                disabled={isAnyLoading}
+                            />
+                            <input
+                                style={{
+                                    ...mainStyles.input,
+                                    flex: 2,
+                                    fontSize: 14
+                                }}
+                                type="password"
+                                placeholder="Clé privée Solana (Base58)"
+                                value={newSolanaKey}
+                                onChange={(e) => setNewSolanaKey(e.target.value)}
+                                disabled={isAnyLoading}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', fontSize: 12, color: '#6c757d' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={newSolanaSave}
+                                    onChange={(e) => setNewSolanaSave(e.target.checked)}
+                                    style={{ marginRight: 6 }}
+                                    disabled={isAnyLoading}
+                                />
+                                Sauvegarder
+                            </label>
                             <button
                                 type="button"
-                                style={{ ...mainStyles.button, ...mainStyles.secondaryButton }}
-                                onClick={() => setShowAddSolana(true)}
-                                disabled={isAnyLoading}
+                                style={{
+                                    ...mainStyles.button,
+                                    ...mainStyles.primaryButton,
+                                    padding: '6px 12px',
+                                    fontSize: 14
+                                }}
+                                onClick={handleAddSolanaWallet}
+                                disabled={!newSolanaKey || !newSolanaName || isAnyLoading}
                             >
-                                + Ajouter un wallet Solana
+                                Ajouter
                             </button>
-                        ) : (
-                            <div style={{ border: '1px solid #ddd', borderRadius: 8, padding: 16, marginTop: 8 }}>
-                                <div style={{ marginBottom: 12 }}>
-                                    <input
-                                        style={{ ...mainStyles.input, marginBottom: 8 }}
-                                        type="text"
-                                        placeholder="Nom du wallet (ex: Mon Wallet Solana)"
-                                        value={newSolanaName}
-                                        onChange={(e) => setNewSolanaName(e.target.value)}
-                                        disabled={isAnyLoading}
-                                    />
-                                    <input
-                                        style={mainStyles.input}
-                                        type="password"
-                                        placeholder="Clé privée Solana (Base58 format)"
-                                        value={newSolanaKey}
-                                        onChange={(e) => setNewSolanaKey(e.target.value)}
-                                        disabled={isAnyLoading}
-                                    />
-                                </div>
-                                <div style={{ display: 'flex', gap: 8 }}>
-                                    <button
-                                        type="button"
-                                        style={{ ...mainStyles.button, ...mainStyles.primaryButton }}
-                                        onClick={handleAddSolanaWallet}
-                                        disabled={!newSolanaKey || !newSolanaName || isAnyLoading}
-                                    >
-                                        Ajouter
-                                    </button>
-                                    <button
-                                        type="button"
-                                        style={{ ...mainStyles.button, ...mainStyles.secondaryButton }}
-                                        onClick={() => {
-                                            setShowAddSolana(false)
-                                            setNewSolanaKey('')
-                                            setNewSolanaName('')
-                                        }}
-                                        disabled={isAnyLoading}
-                                    >
-                                        Annuler
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                        </div>
                     </div>
+                )}
 
-                    {solanaWallets.length > 0 && (
-                        <div style={{ marginTop: 16 }}>
-                            <div style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 8 }}>Wallets Solana enregistrés:</div>
-                            {solanaWallets.map(wallet => (
+                {/* Liste des wallets compacte */}
+                {(solanaWallets.length > 0 || tempSolanaWallets.length > 0) && (
+                    <div style={{ fontSize: 12 }}>
+                        <div style={{ color: '#6c757d', marginBottom: 4, fontWeight: 'bold' }}>
+                            Wallets configurés ({solanaWallets.length + tempSolanaWallets.length}):
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            {[...solanaWallets, ...tempSolanaWallets].map(wallet => (
                                 <div key={wallet.id} style={{
                                     display: 'flex',
-                                    justifyContent: 'space-between',
                                     alignItems: 'center',
-                                    padding: '8px 12px',
-                                    border: '1px solid #eee',
+                                    gap: 4,
+                                    padding: '4px 8px',
+                                    border: '1px solid #ddd',
                                     borderRadius: 4,
-                                    marginBottom: 4,
-                                    backgroundColor: walletState.solana.isConnected && walletState.solana.address === wallet.address ? '#e8f5e8' : '#f9f9f9'
+                                    fontSize: 11,
+                                    backgroundColor: walletState.solana.isConnected && walletState.solana.address === wallet.address ? '#e8f5e8' : '#fff'
                                 }}>
-                                    <div>
-                                        <div style={{ fontWeight: 'bold' }}>
-                                            {wallet.name}
-                                            {walletState.solana.isConnected && walletState.solana.address === wallet.address && (
-                                                <span style={{ color: '#65F152', marginLeft: 8 }}>✓ Connecté</span>
-                                            )}
-                                        </div>
-                                        <div style={{ fontSize: 12, color: '#6c757d' }}>{truncateAddress(wallet.address)}</div>
-                                    </div>
+                                    <span style={{ fontWeight: 'bold' }}>{wallet.name}</span>
+                                    <span style={{ color: '#6c757d' }}>({truncateAddress(wallet.address, 3, 2)})</span>
+                                    {walletState.solana.isConnected && walletState.solana.address === wallet.address && (
+                                        <span style={{ color: '#65F152' }}>✓</span>
+                                    )}
                                     <button
                                         type="button"
                                         style={{
-                                            ...mainStyles.button,
-                                            ...mainStyles.dangerButton,
-                                            padding: '4px 8px',
-                                            fontSize: 12
+                                            background: 'none',
+                                            border: 'none',
+                                            color: '#dc3545',
+                                            cursor: 'pointer',
+                                            padding: 0,
+                                            fontSize: 10
                                         }}
                                         onClick={() => handleRemoveWallet(wallet.id, 'solana')}
                                         disabled={isAnyLoading}
+                                        title="Supprimer"
                                     >
                                         ✖
                                     </button>
                                 </div>
                             ))}
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
 
             {/* Warning */}

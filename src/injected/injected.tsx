@@ -259,23 +259,25 @@ function initializeQuickWallet() {
     // Event listeners
     window.addEventListener('keydown', (event) => {
         if (event.altKey && (event.keyCode === 87 || event.which === 87)) {
-            event.preventDefault()
-                ; (window as any).QuickWallet?.show()
+            event.preventDefault();
+            (window as any).QuickWallet?.show();
         }
     })
 
     window.addEventListener('QuickWalletEvent', (event: any) => {
         if (event.detail.action === "show-wallet-on-page" && (window as any).QuickWallet) {
-            ; (window as any).QuickWallet.show()
+            (window as any).QuickWallet.show();
+
         } else if (event.detail.action === "auto-connect") {
             // Déclencher l'auto-connexion
             setTimeout(() => {
-                const app = document.querySelector('#quickwallet-react-root')
+                const app = document.querySelector('#quickwallet-react-root');
+
                 if (app) {
                     // Déclencher l'auto-connexion via un événement personnalisé
-                    window.dispatchEvent(new CustomEvent('QuickWalletAutoConnect'))
+                    window.dispatchEvent(new CustomEvent('QuickWalletAutoConnect'));
                 }
-            }, 100)
+            }, 100);
         }
     })
 }
