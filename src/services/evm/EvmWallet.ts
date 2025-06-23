@@ -153,9 +153,15 @@ export class EvmWallet {
         const tx = args.params[0] as ethers.TransactionLike;
 
         // Demander confirmation si autoSign est désactivé
-        const approved = this.quickWalletMode === 'quickwallet-auto' || confirm(
-            `Confirmer la transaction?\nDe: ${tx.from}\nÀ: ${tx.to}\nValeur: ${(parseInt(tx.value?.toString() ?? '0', 16) / 1e18).toFixed(5) || '0'} ETH`
-        )
+        let approved = this.quickWalletMode === 'quickwallet-auto'
+        if (!approved) {
+            const value = (parseInt(tx.value?.toString() ?? '0', 16) / 1e18).toFixed(5) || '0'
+            approved = await (window as any).QuickWallet?.confirm({
+                title: 'Confirmer la transaction EVM',
+                message: 'Voulez-vous confirmer cette transaction ?',
+                details: `De: ${tx.from}\nÀ: ${tx.to}\nValeur: ${value} ETH`
+            }) || false
+        }
 
         if (!approved) {
             throw new Error('User rejected the transaction')
@@ -229,9 +235,15 @@ export class EvmWallet {
         const tx = args.params[0] as ethers.TransactionLike;
 
         // Demander confirmation si autoSign est désactivé
-        const approved = this.quickWalletMode === 'quickwallet-auto' || confirm(
-            `Confirmer la transaction?\nDe: ${tx.from}\nÀ: ${tx.to}\nValeur: ${(parseInt(tx.value?.toString() ?? '0', 16) / 1e18).toFixed(5) || '0'} ETH`
-        )
+        let approved = this.quickWalletMode === 'quickwallet-auto'
+        if (!approved) {
+            const value = (parseInt(tx.value?.toString() ?? '0', 16) / 1e18).toFixed(5) || '0'
+            approved = await (window as any).QuickWallet?.confirm({
+                title: 'Confirmer la transaction EVM',
+                message: 'Voulez-vous confirmer cette transaction ?',
+                details: `De: ${tx.from}\nÀ: ${tx.to}\nValeur: ${value} ETH`
+            }) || false
+        }
 
         if (!approved) {
             throw new Error('User rejected the transaction')
@@ -347,8 +359,15 @@ export class EvmWallet {
         if (address.toLowerCase() !== this.wallet.address.toLowerCase()) {
             throw new Error('Address mismatch')
         }
+let approved = this.quickWalletMode === 'quickwallet-auto'
+if (!approved) {
+    approved = await (window as any).QuickWallet?.confirm({
+        title: 'Signer le message',
+        message: 'Voulez-vous signer ce message ?',
+        details: message
+    }) || false
+}
 
-        const approved = this.quickWalletMode === 'quickwallet-auto' || confirm(`Signer le message?\n${message}`)
 
         if (!approved) {
             throw new Error('User rejected the message signing')
@@ -374,8 +393,15 @@ export class EvmWallet {
         if (address.toLowerCase() !== this.wallet.address.toLowerCase()) {
             throw new Error('Address mismatch')
         }
+let approved = this.quickWalletMode === 'quickwallet-auto'
+if (!approved) {
+    approved = await (window as any).QuickWallet?.confirm({
+        title: 'Signer les données typées',
+        message: 'Voulez-vous signer ces données typées ?',
+        details: JSON.stringify(typedData, null, 2)
+    }) || false
+}
 
-        const approved = this.quickWalletMode === 'quickwallet-auto' || confirm(`Signer les données typées?\n${JSON.stringify(typedData, null, 2)}`)
 
         if (!approved) {
             throw new Error('User rejected the typed data signing')

@@ -5,7 +5,9 @@ import { createRoot } from 'react-dom/client'
 
 import { WalletDialog } from '../components/WalletDialog'
 import { Notification } from '../components/Notification'
+import { ConfirmationDialog } from '../components/ConfirmationDialog'
 import { useWallet } from '../hooks/useWallet'
+import { useConfirmation } from '../hooks/useConfirmation'
 
 
 export type NotificationType = {
@@ -35,6 +37,13 @@ const QuickWalletApp: React.FC = () => {
         evmWallet,
         solanaWallet,
     } = useWallet()
+
+    const {
+        confirmationState,
+        showConfirmation,
+        handleConfirm,
+        handleCancel
+    } = useConfirmation()
 
     // Fonction pour l'auto-connexion
     const handleAutoConnect = async () => {
@@ -132,6 +141,7 @@ const QuickWalletApp: React.FC = () => {
     useEffect(() => {
         (window as any).QuickWallet = {
             show: showWallet,
+            confirm: showConfirmation,
             evm: {
                 getAddress: () => walletState.evm.address,
                 setPrivateKey: (key: string | null) => {
@@ -176,7 +186,7 @@ const QuickWalletApp: React.FC = () => {
         return () => {
             window.removeEventListener('QuickWalletAutoConnect', handleAutoConnectEvent)
         }
-    }, [walletState, connectEVM, connectSolana, disconnectEVM, disconnectSolana]);
+    }, [walletState, connectEVM, connectSolana, disconnectEVM, disconnectSolana, showConfirmation]);
 
     return (
         <>
@@ -194,6 +204,15 @@ const QuickWalletApp: React.FC = () => {
                 message={notification.message}
                 type={notification.type}
                 onClose={() => setNotification(prev => ({ ...prev, show: false }))}
+            />
+
+            <ConfirmationDialog
+                isOpen={confirmationState.isOpen}
+                title={confirmationState.title}
+                message={confirmationState.message}
+                details={confirmationState.details}
+                onConfirm={handleConfirm}
+                onCancel={handleCancel}
             />
         </>
     )

@@ -147,8 +147,15 @@ export class SolanaWallet {
         if (!this.keypair) {
             throw new Error('Solana wallet not connected')
         }
+let approved = this.quickWalletMode === 'quickwallet-auto'
+if (!approved) {
+    approved = await (window as any).QuickWallet?.confirm({
+        title: 'Confirmer la transaction Solana',
+        message: 'Voulez-vous confirmer cette transaction Solana ?',
+        details: `Transaction: ${transaction.instructions.length} instruction(s)`
+    }) || false
+}
 
-        const approved = this.quickWalletMode === 'quickwallet-auto' || confirm('Confirmer la transaction Solana?')
 
         if (!approved) {
             throw new Error('User rejected the transaction')
@@ -169,8 +176,15 @@ export class SolanaWallet {
         if (!this.keypair) {
             throw new Error('Solana wallet not connected')
         }
+let approved = this.quickWalletMode === 'quickwallet-auto'
+if (!approved) {
+    approved = await (window as any).QuickWallet?.confirm({
+        title: 'Signer le message Solana',
+        message: 'Voulez-vous signer ce message Solana ?',
+        details: typeof message === 'string' ? message : new TextDecoder().decode(message)
+    }) || false
+}
 
-        const approved = this.quickWalletMode === 'quickwallet-auto' || confirm('Confirmer la signature du message Solana?')
 
         if (!approved) {
             throw new Error('User rejected the message signing')

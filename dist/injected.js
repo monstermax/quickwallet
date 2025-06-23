@@ -28678,6 +28678,160 @@ const Notification = ({
     )
   ] }) });
 };
+const ConfirmationDialog = ({
+  isOpen,
+  title,
+  message,
+  details,
+  onConfirm,
+  onCancel
+}) => {
+  if (!isOpen) return null;
+  const dialogStyles = {
+    overlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0, 0, 0, 0.7)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 1e4
+    },
+    dialog: {
+      backgroundColor: "#fff",
+      borderRadius: 12,
+      padding: 24,
+      maxWidth: 500,
+      width: "90%",
+      maxHeight: "80vh",
+      overflow: "auto",
+      boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+      border: "2px solid #65F152"
+    },
+    header: {
+      display: "flex",
+      alignItems: "center",
+      marginBottom: 16,
+      paddingBottom: 12,
+      borderBottom: "1px solid #eee"
+    },
+    icon: {
+      fontSize: 24,
+      marginRight: 12,
+      color: "#ff9500"
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: "#333",
+      margin: 0
+    },
+    message: {
+      fontSize: 16,
+      color: "#555",
+      marginBottom: 16,
+      lineHeight: 1.5
+    },
+    details: {
+      backgroundColor: "#f8f9fa",
+      border: "1px solid #e9ecef",
+      borderRadius: 8,
+      padding: 12,
+      fontSize: 14,
+      fontFamily: "monospace",
+      color: "#495057",
+      marginBottom: 20,
+      whiteSpace: "pre-wrap",
+      maxHeight: 200,
+      overflow: "auto"
+    },
+    buttons: {
+      display: "flex",
+      gap: 12,
+      justifyContent: "flex-end"
+    },
+    cancelButton: {
+      ...mainStyles.button,
+      backgroundColor: "#6c757d",
+      color: "#fff",
+      border: "none",
+      padding: "10px 20px",
+      borderRadius: 6,
+      cursor: "pointer",
+      fontSize: 14,
+      fontWeight: "500"
+    },
+    confirmButton: {
+      ...mainStyles.button,
+      backgroundColor: "#65F152",
+      color: "#000",
+      border: "none",
+      padding: "10px 20px",
+      borderRadius: 6,
+      cursor: "pointer",
+      fontSize: 14,
+      fontWeight: "500"
+    }
+  };
+  const handleKeyDown = (e) => {
+    if (e.key === "Escape") {
+      onCancel();
+    } else if (e.key === "Enter") {
+      onConfirm();
+    }
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    "div",
+    {
+      style: dialogStyles.overlay,
+      onClick: (e) => e.target === e.currentTarget && onCancel(),
+      onKeyDown: handleKeyDown,
+      tabIndex: -1,
+      children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: dialogStyles.dialog, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: dialogStyles.header, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: dialogStyles.icon, children: "⚠️" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { style: dialogStyles.title, children: title })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: dialogStyles.message, children: message }),
+        details && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: dialogStyles.details, children: details }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: dialogStyles.buttons, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              style: dialogStyles.cancelButton,
+              onClick: onCancel,
+              onMouseOver: (e) => {
+                e.currentTarget.style.backgroundColor = "#5a6268";
+              },
+              onMouseOut: (e) => {
+                e.currentTarget.style.backgroundColor = "#6c757d";
+              },
+              children: "Annuler"
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              style: dialogStyles.confirmButton,
+              onClick: onConfirm,
+              onMouseOver: (e) => {
+                e.currentTarget.style.backgroundColor = "#5ae042";
+              },
+              onMouseOut: (e) => {
+                e.currentTarget.style.backgroundColor = "#65F152";
+              },
+              autoFocus: true,
+              children: "Confirmer"
+            }
+          )
+        ] })
+      ] })
+    }
+  );
+};
 var __defProp$3 = Object.defineProperty;
 var __defNormalProp$3 = (obj, key, value) => key in obj ? __defProp$3(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField$3 = (obj, key, value) => __defNormalProp$3(obj, key + "", value);
@@ -28904,12 +29058,17 @@ class EvmWallet {
   }
   async sendTransaction(args) {
     const tx = args.params[0];
-    const approved = this.quickWalletMode === "quickwallet-auto" || confirm(
-      `Confirmer la transaction?
-De: ${tx.from}
+    let approved = this.quickWalletMode === "quickwallet-auto";
+    if (!approved) {
+      const value = (parseInt(tx.value?.toString() ?? "0", 16) / 1e18).toFixed(5) || "0";
+      approved = await window.QuickWallet?.confirm({
+        title: "Confirmer la transaction EVM",
+        message: "Voulez-vous confirmer cette transaction ?",
+        details: `De: ${tx.from}
 À: ${tx.to}
-Valeur: ${(parseInt(tx.value?.toString() ?? "0", 16) / 1e18).toFixed(5) || "0"} ETH`
-    );
+Valeur: ${value} ETH`
+      }) || false;
+    }
     if (!approved) {
       throw new Error("User rejected the transaction");
     }
@@ -28960,12 +29119,17 @@ Valeur: ${(parseInt(tx.value?.toString() ?? "0", 16) / 1e18).toFixed(5) || "0"} 
   }
   async sendTransactionExternal(args) {
     const tx = args.params[0];
-    const approved = this.quickWalletMode === "quickwallet-auto" || confirm(
-      `Confirmer la transaction?
-De: ${tx.from}
+    let approved = this.quickWalletMode === "quickwallet-auto";
+    if (!approved) {
+      const value = (parseInt(tx.value?.toString() ?? "0", 16) / 1e18).toFixed(5) || "0";
+      approved = await window.QuickWallet?.confirm({
+        title: "Confirmer la transaction EVM",
+        message: "Voulez-vous confirmer cette transaction ?",
+        details: `De: ${tx.from}
 À: ${tx.to}
-Valeur: ${(parseInt(tx.value?.toString() ?? "0", 16) / 1e18).toFixed(5) || "0"} ETH`
-    );
+Valeur: ${value} ETH`
+      }) || false;
+    }
     if (!approved) {
       throw new Error("User rejected the transaction");
     }
@@ -29042,8 +29206,14 @@ Valeur: ${(parseInt(tx.value?.toString() ?? "0", 16) / 1e18).toFixed(5) || "0"} 
     if (address.toLowerCase() !== this.wallet.address.toLowerCase()) {
       throw new Error("Address mismatch");
     }
-    const approved = this.quickWalletMode === "quickwallet-auto" || confirm(`Signer le message?
-${message}`);
+    let approved = this.quickWalletMode === "quickwallet-auto";
+    if (!approved) {
+      approved = await window.QuickWallet?.confirm({
+        title: "Signer le message",
+        message: "Voulez-vous signer ce message ?",
+        details: message
+      }) || false;
+    }
     if (!approved) {
       throw new Error("User rejected the message signing");
     }
@@ -29062,8 +29232,14 @@ ${message}`);
     if (address.toLowerCase() !== this.wallet.address.toLowerCase()) {
       throw new Error("Address mismatch");
     }
-    const approved = this.quickWalletMode === "quickwallet-auto" || confirm(`Signer les données typées?
-${JSON.stringify(typedData, null, 2)}`);
+    let approved = this.quickWalletMode === "quickwallet-auto";
+    if (!approved) {
+      approved = await window.QuickWallet?.confirm({
+        title: "Signer les données typées",
+        message: "Voulez-vous signer ces données typées ?",
+        details: JSON.stringify(typedData, null, 2)
+      }) || false;
+    }
     if (!approved) {
       throw new Error("User rejected the typed data signing");
     }
@@ -29623,7 +29799,14 @@ class SolanaWallet {
     if (!this.keypair) {
       throw new Error("Solana wallet not connected");
     }
-    const approved = this.quickWalletMode === "quickwallet-auto" || confirm("Confirmer la transaction Solana?");
+    let approved = this.quickWalletMode === "quickwallet-auto";
+    if (!approved) {
+      approved = await window.QuickWallet?.confirm({
+        title: "Confirmer la transaction Solana",
+        message: "Voulez-vous confirmer cette transaction Solana ?",
+        details: `Transaction: ${transaction.instructions.length} instruction(s)`
+      }) || false;
+    }
     if (!approved) {
       throw new Error("User rejected the transaction");
     }
@@ -29639,7 +29822,14 @@ class SolanaWallet {
     if (!this.keypair) {
       throw new Error("Solana wallet not connected");
     }
-    const approved = this.quickWalletMode === "quickwallet-auto" || confirm("Confirmer la signature du message Solana?");
+    let approved = this.quickWalletMode === "quickwallet-auto";
+    if (!approved) {
+      approved = await window.QuickWallet?.confirm({
+        title: "Signer le message Solana",
+        message: "Voulez-vous signer ce message Solana ?",
+        details: typeof message === "string" ? message : new TextDecoder().decode(message)
+      }) || false;
+    }
     if (!approved) {
       throw new Error("User rejected the message signing");
     }
@@ -29793,6 +29983,44 @@ const useWallet = () => {
     //setAutoSign,
   };
 };
+const useConfirmation = () => {
+  const [confirmationState, setConfirmationState] = reactExports.useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    details: void 0,
+    resolve: void 0
+  });
+  const showConfirmation = reactExports.useCallback((options) => {
+    return new Promise((resolve) => {
+      setConfirmationState({
+        isOpen: true,
+        title: options.title,
+        message: options.message,
+        details: options.details,
+        resolve
+      });
+    });
+  }, []);
+  const handleConfirm = reactExports.useCallback(() => {
+    if (confirmationState.resolve) {
+      confirmationState.resolve(true);
+    }
+    setConfirmationState((prev) => ({ ...prev, isOpen: false, resolve: void 0 }));
+  }, [confirmationState.resolve]);
+  const handleCancel = reactExports.useCallback(() => {
+    if (confirmationState.resolve) {
+      confirmationState.resolve(false);
+    }
+    setConfirmationState((prev) => ({ ...prev, isOpen: false, resolve: void 0 }));
+  }, [confirmationState.resolve]);
+  return {
+    confirmationState,
+    showConfirmation,
+    handleConfirm,
+    handleCancel
+  };
+};
 console.log("%cQuickWallet React enabled", "color:#65F152; font-size:50px; font-weight: bold; -webkit-text-stroke: 1px black;");
 const QuickWalletApp = () => {
   const [isDialogOpen, setIsDialogOpen] = reactExports.useState(false);
@@ -29808,6 +30036,12 @@ const QuickWalletApp = () => {
     disconnectEVM,
     disconnectSolana
   } = useWallet();
+  const {
+    confirmationState,
+    showConfirmation,
+    handleConfirm,
+    handleCancel
+  } = useConfirmation();
   const handleAutoConnect = async () => {
     try {
       const { secureStorage: secureStorage2 } = await __vitePreload(async () => {
@@ -29882,6 +30116,7 @@ const QuickWalletApp = () => {
   reactExports.useEffect(() => {
     window.QuickWallet = {
       show: showWallet,
+      confirm: showConfirmation,
       evm: {
         getAddress: () => walletState.evm.address,
         setPrivateKey: (key) => {
@@ -29918,7 +30153,7 @@ const QuickWalletApp = () => {
     return () => {
       window.removeEventListener("QuickWalletAutoConnect", handleAutoConnectEvent);
     };
-  }, [walletState, connectEVM, connectSolana, disconnectEVM, disconnectSolana]);
+  }, [walletState, connectEVM, connectSolana, disconnectEVM, disconnectSolana, showConfirmation]);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx(
       WalletDialog,
@@ -29938,6 +30173,17 @@ const QuickWalletApp = () => {
         message: notification.message,
         type: notification.type,
         onClose: () => setNotification((prev) => ({ ...prev, show: false }))
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      ConfirmationDialog,
+      {
+        isOpen: confirmationState.isOpen,
+        title: confirmationState.title,
+        message: confirmationState.message,
+        details: confirmationState.details,
+        onConfirm: handleConfirm,
+        onCancel: handleCancel
       }
     )
   ] });
