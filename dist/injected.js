@@ -27296,13 +27296,6 @@ const mainStyles = {
   section: {
     marginBottom: "24px"
   },
-  label: {
-    display: "block",
-    marginBottom: "8px",
-    fontWeight: "600",
-    fontSize: "14px",
-    color: "#374151"
-  },
   badge: {
     backgroundColor: "#65F152",
     color: "#000",
@@ -27311,27 +27304,6 @@ const mainStyles = {
     fontSize: "12px",
     fontWeight: "bold",
     marginRight: "8px"
-  },
-  address: {
-    fontFamily: "monospace",
-    fontSize: "12px",
-    color: "#1e40af",
-    backgroundColor: "#eff6ff",
-    padding: "4px 8px",
-    borderRadius: "4px",
-    wordBreak: "break-all"
-  },
-  inputGroup: {
-    display: "flex",
-    border: "1px solid #d1d5db",
-    borderRadius: "6px",
-    overflow: "hidden"
-  },
-  inputIcon: {
-    padding: "12px",
-    backgroundColor: "#f9fafb",
-    borderRight: "1px solid #d1d5db",
-    fontSize: "16px"
   },
   input: {
     flex: 1,
@@ -27342,22 +27314,6 @@ const mainStyles = {
     fontFamily: "inherit",
     color: "#374151",
     backgroundColor: "#ffffff"
-  },
-  inputButton: {
-    padding: "8px 16px",
-    border: "none",
-    borderLeft: "1px solid #d1d5db",
-    backgroundColor: "#65F152",
-    color: "#000",
-    fontSize: "14px",
-    fontWeight: "600",
-    cursor: "pointer",
-    transition: "all 0.2s",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: "80px",
-    whiteSpace: "nowrap"
   },
   button: {
     padding: "8px 16px",
@@ -27386,19 +27342,6 @@ const mainStyles = {
   disabledButton: {
     opacity: 0.6,
     cursor: "not-allowed"
-  },
-  loadingContent: {
-    display: "flex",
-    alignItems: "center",
-    gap: "6px"
-  },
-  spinner: {
-    width: "14px",
-    height: "14px",
-    border: "2px solid transparent",
-    borderTop: "2px solid currentColor",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite"
   },
   footer: {
     padding: "16px 24px",
@@ -27725,6 +27668,7 @@ const WalletsTab = ({
   };
   const handleAddSolanaWallet = async () => {
     if (!newSolanaKey || !newSolanaName) return;
+    console.log("Adding Solana wallet:", newSolanaName, "Save:", newSolanaSave);
     try {
       const validKey = validateSolanaPrivateKey(newSolanaKey);
       if (!validKey) {
@@ -27738,8 +27682,8 @@ const WalletsTab = ({
       const secretKey = bs58.decode(validKey);
       const keypair = Keypair.fromSecretKey(secretKey);
       const address = keypair.publicKey.toBase58();
-      const existingWallets = JSON.parse(localStorage.getItem("quickwallet-temp-wallets") || "[]");
-      const existingWallet = existingWallets.find((w2) => w2.address === address && w2.type === "solana");
+      const allSolanaWallets = [...solanaWallets, ...tempSolanaWallets];
+      const existingWallet = allSolanaWallets.find((w2) => w2.address === address);
       if (existingWallet) {
         setNotification({
           show: true,
@@ -27748,6 +27692,9 @@ const WalletsTab = ({
         });
         return;
       }
+      setSolanaKey(validKey);
+      await onSolanaConnect();
+      console.log("Connected Solana wallet");
       const newWallet = {
         id: "solana-" + Date.now(),
         name: newSolanaName,
@@ -27756,39 +27703,78 @@ const WalletsTab = ({
         address,
         timestamp: Date.now()
       };
-      const updatedWallets = [...existingWallets, newWallet];
-      localStorage.setItem("quickwallet-temp-wallets", JSON.stringify(updatedWallets));
-      setSolanaKey(validKey);
-      await onSolanaConnect();
+      if (newSolanaSave) {
+        try {
+          await secureStorage.addWallet(newWallet);
+          console.log("Saved wallet securely");
+          await loadWallets();
+        } catch (error2) {
+          console.error("Error saving wallet securely:", error2);
+          setNotification({
+            show: true,
+            message: "Erreur lors de la sauvegarde sécurisée. Wallet connecté temporairement.",
+            type: "warning"
+          });
+          setTempSolanaWallets((prev) => [...prev, newWallet]);
+        }
+      } else {
+        setTempSolanaWallets((prev) => [...prev, newWallet]);
+        console.log("Added wallet to temporary memory");
+      }
       setNewSolanaKey("");
       setNewSolanaName("");
+      setNewSolanaSave(false);
       setShowAddSolana(false);
       setNotification({
         show: true,
-        message: "Wallet Solana ajouté et connecté avec succès",
+        message: newSolanaSave ? "Wallet Solana sauvegardé et connecté avec succès" : "Wallet Solana connecté temporairement",
         type: "success"
       });
-      await loadWallets();
     } catch (error2) {
+      console.error("Error in handleAddSolanaWallet:", error2);
       setNotification({
         show: true,
-        message: "Erreur lors de l'ajout du wallet Solana",
+        message: "Erreur lors de l'ajout du wallet Solana: " + (error2 instanceof Error ? error2.message : "Erreur inconnue"),
         type: "error"
       });
     }
   };
   const handleRemoveWallet = async (walletId, type2) => {
     try {
-      const existingWallets = JSON.parse(localStorage.getItem("quickwallet-temp-wallets") || "[]");
-      const updatedWallets = existingWallets.filter((w2) => w2.id !== walletId);
-      localStorage.setItem("quickwallet-temp-wallets", JSON.stringify(updatedWallets));
-      const walletToRemove = existingWallets.find((w2) => w2.id === walletId);
-      if (walletToRemove) {
-        if (type2 === "evm" && walletState.evm.isConnected && walletState.evm.address === walletToRemove.address) {
-          handleDisconnect("evm");
+      const allWallets = type2 === "evm" ? [...evmWallets, ...tempEvmWallets] : [...solanaWallets, ...tempSolanaWallets];
+      const walletToRemove = allWallets.find((w2) => w2.id === walletId);
+      if (!walletToRemove) {
+        setNotification({
+          show: true,
+          message: "Wallet non trouvé",
+          type: "error"
+        });
+        return;
+      }
+      if (type2 === "evm" && walletState.evm.isConnected && walletState.evm.address === walletToRemove.address) {
+        handleDisconnect("evm");
+      }
+      if (type2 === "solana" && walletState.solana.isConnected && walletState.solana.address === walletToRemove.address) {
+        handleDisconnect("solana");
+      }
+      const isSecureWallet = type2 === "evm" ? evmWallets.find((w2) => w2.id === walletId) : solanaWallets.find((w2) => w2.id === walletId);
+      if (isSecureWallet) {
+        try {
+          await secureStorage.removeWallet(walletId);
+          console.log("Removed wallet from secure storage");
+        } catch (error2) {
+          console.error("Error removing from secure storage:", error2);
+          setNotification({
+            show: true,
+            message: "Erreur lors de la suppression du stockage sécurisé",
+            type: "warning"
+          });
         }
-        if (type2 === "solana" && walletState.solana.isConnected && walletState.solana.address === walletToRemove.address) {
-          handleDisconnect("solana");
+      } else {
+        if (type2 === "evm") {
+          setTempEvmWallets((prev) => prev.filter((w2) => w2.id !== walletId));
+        } else {
+          setTempSolanaWallets((prev) => prev.filter((w2) => w2.id !== walletId));
         }
       }
       await loadWallets();
@@ -27803,6 +27789,7 @@ const WalletsTab = ({
         type: "info"
       });
     } catch (error2) {
+      console.error("Error in handleRemoveWallet:", error2);
       setNotification({
         show: true,
         message: "Erreur lors de la suppression du wallet",
@@ -27820,91 +27807,118 @@ const WalletsTab = ({
       " ",
       error
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: mainStyles.section, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: mainStyles.label, children: "🦊 EVM Networks (Ethereum, Polygon, BSC, Arbitrum...)" }),
-      walletState.evm.isConnected && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: {
-        padding: "12px",
-        backgroundColor: "#e8f5e8",
-        border: "1px solid #65F152",
-        borderRadius: 8,
-        marginBottom: 12
-      }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" }, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: mainStyles.badge, children: "🟢 Connected" }),
-            walletState.evm.chainId && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { ...mainStyles.badge, backgroundColor: "#6c757d", color: "#fff" }, children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: {
+      ...mainStyles.section,
+      border: "1px solid #e0e0e0",
+      borderRadius: 8,
+      padding: "16px",
+      marginBottom: 16
+    }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 12,
+        paddingBottom: 8,
+        borderBottom: "1px solid #f0f0f0"
+      }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontSize: 18 }, children: "🦊" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontWeight: "bold", fontSize: 16 }, children: "EVM Networks" }),
+          walletState.evm.isConnected && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: {
+              ...mainStyles.badge,
+              backgroundColor: "#e8f5e8",
+              color: "#2d5a2d",
+              border: "1px solid #65F152",
+              fontSize: 11,
+              padding: "2px 6px"
+            }, children: [
+              "🟢 ",
+              truncateAddress(walletState.evm.address || "", 4, 3)
+            ] }),
+            walletState.evm.chainId && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: {
+              ...mainStyles.badge,
+              backgroundColor: "#6c757d",
+              color: "#fff",
+              fontSize: 11,
+              padding: "2px 6px"
+            }, children: [
               "Chain ",
               walletState.evm.chainId
             ] })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: mainStyles.address, children: truncateAddress(walletState.evm.address || "") })
+          ] })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, alignItems: "center" }, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 4 }, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs(
-              "select",
-              {
-                value: evmMode,
-                onChange: (e) => handleEvmModeChange(e.target.value),
-                style: {
-                  padding: "6px 12px",
-                  borderRadius: 4,
-                  border: "1px solid #65F152",
-                  fontSize: 14,
-                  marginBottom: 2,
-                  minWidth: 140,
-                  background: "#fff",
-                  color: "#111"
-                },
-                disabled: isAnyLoading,
-                children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "classic", children: "Classic (MetaMask)" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-manual", children: "QuickWallet (manual-sign)" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-auto", children: "QuickWallet (auto-sign)" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-external-sign", children: "QuickWallet (external-sign)" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-external-tx", children: "QuickWallet (external-tx)" })
-                ]
-              }
-            ),
-            isConnectedOnTabEvm && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: {
-              background: "#65F152",
-              color: "#000",
-              fontWeight: "bold",
-              borderRadius: 4,
-              padding: "2px 8px",
-              fontSize: 12
-            }, children: "QuickWallet Active" })
-          ] }),
+        walletState.evm.isConnected && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "select",
+            {
+              value: evmMode,
+              onChange: (e) => handleEvmModeChange(e.target.value),
+              style: {
+                padding: "4px 8px",
+                borderRadius: 4,
+                border: "1px solid #ddd",
+                fontSize: 12,
+                background: "#fff"
+              },
+              disabled: isAnyLoading,
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "classic", children: "Classic" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-manual", children: "Manual" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-auto", children: "Auto" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-external-sign", children: "Ext-Sign" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-external-tx", children: "Ext-TX" })
+              ]
+            }
+          ),
+          isConnectedOnTabEvm && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: {
+            background: "#65F152",
+            color: "#000",
+            fontWeight: "bold",
+            borderRadius: 3,
+            padding: "2px 6px",
+            fontSize: 10
+          }, children: "QW" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "button",
             {
               type: "button",
-              style: { ...mainStyles.button, ...mainStyles.dangerButton },
+              style: {
+                ...mainStyles.button,
+                ...mainStyles.dangerButton,
+                padding: "4px 8px",
+                fontSize: 12
+              },
               onClick: () => handleDisconnect("evm"),
               disabled: isAnyLoading,
-              children: "Disconnect"
+              children: "✖"
             }
           )
         ] })
-      ] }) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-        evmWallets.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: mainStyles.inputGroup, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: mainStyles.inputIcon, children: "🔑" }),
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }, children: [
+        evmWallets.length > 0 || tempEvmWallets.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs(
             "select",
             {
-              style: mainStyles.input,
+              style: {
+                ...mainStyles.input,
+                flex: 1,
+                minWidth: 0,
+                fontSize: 14
+              },
               value: selectedEvmWallet,
               onChange: (e) => setSelectedEvmWallet(e.target.value),
               disabled: isAnyLoading,
               children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Sélectionner un wallet EVM..." }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Choisir un wallet EVM..." }),
                 [...evmWallets, ...tempEvmWallets].map((wallet) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: wallet.id, children: [
                   wallet.name,
                   " (",
-                  truncateAddress(wallet.address),
+                  truncateAddress(wallet.address, 4, 3),
                   ")",
-                  walletState.evm.isConnected && walletState.evm.address === wallet.address ? " ✓ Connecté" : ""
+                  walletState.evm.isConnected && walletState.evm.address === wallet.address ? " ✓" : ""
                 ] }, wallet.id))
               ]
             }
@@ -27914,193 +27928,257 @@ const WalletsTab = ({
             {
               type: "button",
               style: {
-                ...mainStyles.inputButton,
+                ...mainStyles.button,
+                ...mainStyles.primaryButton,
+                padding: "8px 12px",
+                fontSize: 14,
+                minWidth: 80,
                 ...(!selectedEvmWallet || evmLoading) && mainStyles.disabledButton
               },
               onClick: handleEvmConnect,
               disabled: !selectedEvmWallet || isAnyLoading,
-              children: evmLoading ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: mainStyles.loadingContent, children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: mainStyles.spinner }) }) : walletState.evm.isConnected ? "Switch" : "Connect"
+              children: evmLoading ? "⏳" : walletState.evm.isConnected ? "Switch" : "Connect"
             }
           )
-        ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { textAlign: "center", padding: "20px", color: "#6c757d" }, children: "Aucun wallet EVM enregistré" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { marginTop: 12 }, children: !showAddEvm ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+        ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: {
+          flex: 1,
+          textAlign: "center",
+          padding: "12px",
+          color: "#6c757d",
+          fontSize: 14,
+          fontStyle: "italic"
+        }, children: "Aucun wallet EVM configuré" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
           "button",
           {
             type: "button",
-            style: { ...mainStyles.button, ...mainStyles.secondaryButton },
-            onClick: () => setShowAddEvm(true),
+            style: {
+              ...mainStyles.button,
+              ...mainStyles.secondaryButton,
+              padding: "8px 12px",
+              fontSize: 14,
+              minWidth: 80
+            },
+            onClick: () => setShowAddEvm(!showAddEvm),
             disabled: isAnyLoading,
-            children: "+ Ajouter un wallet EVM"
+            children: showAddEvm ? "Annuler" : "+ Ajouter"
           }
-        ) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { border: "1px solid #ddd", borderRadius: 8, padding: 16, marginTop: 8 }, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginBottom: 12 }, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                style: { ...mainStyles.input, marginBottom: 8 },
-                type: "text",
-                placeholder: "Nom du wallet (ex: Mon Wallet Principal)",
-                value: newEvmName,
-                onChange: (e) => setNewEvmName(e.target.value),
-                disabled: isAnyLoading
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                style: mainStyles.input,
-                type: "password",
-                placeholder: "Clé privée EVM (0x123abc...)",
-                value: newEvmKey,
-                onChange: (e) => setNewEvmKey(e.target.value),
-                disabled: isAnyLoading
-              }
-            )
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8 }, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                type: "button",
-                style: { ...mainStyles.button, ...mainStyles.primaryButton },
-                onClick: handleAddEvmWallet,
-                disabled: !newEvmKey || !newEvmName || isAnyLoading,
-                children: "Ajouter"
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                type: "button",
-                style: { ...mainStyles.button, ...mainStyles.secondaryButton },
-                onClick: () => {
-                  setShowAddEvm(false);
-                  setNewEvmKey("");
-                  setNewEvmName("");
-                },
-                disabled: isAnyLoading,
-                children: "Annuler"
-              }
-            )
-          ] })
-        ] }) }),
-        evmWallets.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginTop: 16 }, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 14, fontWeight: "bold", marginBottom: 8 }, children: "Wallets EVM enregistrés:" }),
-          evmWallets.map((wallet) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: {
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "8px 12px",
-            border: "1px solid #eee",
-            borderRadius: 4,
-            marginBottom: 4,
-            backgroundColor: walletState.evm.isConnected && walletState.evm.address === wallet.address ? "#e8f5e8" : "#f9f9f9"
-          }, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontWeight: "bold" }, children: [
-                wallet.name,
-                walletState.evm.isConnected && walletState.evm.address === wallet.address && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "#65F152", marginLeft: 8 }, children: "✓ Connecté" })
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#6c757d" }, children: truncateAddress(wallet.address) })
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                type: "button",
-                style: {
-                  ...mainStyles.button,
-                  ...mainStyles.dangerButton,
-                  padding: "4px 8px",
-                  fontSize: 12
-                },
-                onClick: () => handleRemoveWallet(wallet.id, "evm"),
-                disabled: isAnyLoading,
-                children: "✖"
-              }
-            )
-          ] }, wallet.id))
-        ] })
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: mainStyles.section, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("label", { style: mainStyles.label, children: "👾 Solana Network" }),
-      walletState.solana.isConnected && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: {
-        padding: "12px",
-        backgroundColor: "#e8f5e8",
-        border: "1px solid #65F152",
-        borderRadius: 8,
-        marginBottom: 12
-      }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" }, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: mainStyles.badge, children: "🟢 Connected" }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: mainStyles.address, children: truncateAddress(walletState.solana.address || "") })
+        )
+      ] }),
+      showAddEvm && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: {
+        backgroundColor: "#f8f9fa",
+        border: "1px solid #e9ecef",
+        borderRadius: 6,
+        padding: 12,
+        marginBottom: 8
+      }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, marginBottom: 8 }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              style: {
+                ...mainStyles.input,
+                flex: 1,
+                fontSize: 14
+              },
+              type: "text",
+              placeholder: "Nom du wallet",
+              value: newEvmName,
+              onChange: (e) => setNewEvmName(e.target.value),
+              disabled: isAnyLoading
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              style: {
+                ...mainStyles.input,
+                flex: 2,
+                fontSize: 14
+              },
+              type: "password",
+              placeholder: "Clé privée EVM (0x...)",
+              value: newEvmKey,
+              onChange: (e) => setNewEvmKey(e.target.value),
+              disabled: isAnyLoading
+            }
+          )
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, alignItems: "center" }, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 4 }, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs(
-              "select",
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { style: { display: "flex", alignItems: "center", fontSize: 12, color: "#6c757d" }, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
               {
-                value: solanaMode,
-                onChange: (e) => handleSolanaModeChange(e.target.value),
-                style: {
-                  padding: "6px 12px",
-                  borderRadius: 4,
-                  border: "1px solid #65F152",
-                  fontSize: 14,
-                  marginBottom: 2,
-                  minWidth: 140,
-                  background: "#fff",
-                  color: "#111"
-                },
-                disabled: isAnyLoading,
-                children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "classic", children: "Classic (Phantom)" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-manual", children: "QuickWallet (manual-sign)" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-auto", children: "QuickWallet (auto-sign)" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-external-sign", children: "QuickWallet (external-sign)" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-external-tx", children: "QuickWallet (external-tx)" })
-                ]
+                type: "checkbox",
+                checked: newEvmSave,
+                onChange: (e) => setNewEvmSave(e.target.checked),
+                style: { marginRight: 6 },
+                disabled: isAnyLoading
               }
             ),
-            isConnectedOnTabSolana && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: {
-              background: "#65F152",
-              color: "#000",
-              fontWeight: "bold",
-              borderRadius: 4,
-              padding: "2px 8px",
-              fontSize: 12
-            }, children: "QuickWallet Active" })
+            "Sauvegarder"
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "button",
             {
               type: "button",
-              style: { ...mainStyles.button, ...mainStyles.dangerButton },
-              onClick: () => handleDisconnect("solana"),
-              disabled: isAnyLoading,
-              children: "Disconnect"
+              style: {
+                ...mainStyles.button,
+                ...mainStyles.primaryButton,
+                padding: "6px 12px",
+                fontSize: 14
+              },
+              onClick: handleAddEvmWallet,
+              disabled: !newEvmKey || !newEvmName || isAnyLoading,
+              children: "Ajouter"
             }
           )
         ] })
-      ] }) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-        solanaWallets.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: mainStyles.inputGroup, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: mainStyles.inputIcon, children: "🔑" }),
+      ] }),
+      (evmWallets.length > 0 || tempEvmWallets.length > 0) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12 }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { color: "#6c757d", marginBottom: 4, fontWeight: "bold" }, children: [
+          "Wallets configurés (",
+          evmWallets.length + tempEvmWallets.length,
+          "):"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 4 }, children: [...evmWallets, ...tempEvmWallets].map((wallet) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: {
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          padding: "4px 8px",
+          border: "1px solid #ddd",
+          borderRadius: 4,
+          fontSize: 11,
+          backgroundColor: walletState.evm.isConnected && walletState.evm.address === wallet.address ? "#e8f5e8" : "#fff"
+        }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontWeight: "bold" }, children: wallet.name }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { color: "#6c757d" }, children: [
+            "(",
+            truncateAddress(wallet.address, 3, 2),
+            ")"
+          ] }),
+          walletState.evm.isConnected && walletState.evm.address === wallet.address && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "#65F152" }, children: "✓" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              type: "button",
+              style: {
+                background: "none",
+                border: "none",
+                color: "#dc3545",
+                cursor: "pointer",
+                padding: 0,
+                fontSize: 10
+              },
+              onClick: () => handleRemoveWallet(wallet.id, "evm"),
+              disabled: isAnyLoading,
+              title: "Supprimer",
+              children: "✖"
+            }
+          )
+        ] }, wallet.id)) })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: {
+      ...mainStyles.section,
+      border: "1px solid #e0e0e0",
+      borderRadius: 8,
+      padding: "16px",
+      marginBottom: 16
+    }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 12,
+        paddingBottom: 8,
+        borderBottom: "1px solid #f0f0f0"
+      }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontSize: 18 }, children: "👾" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontWeight: "bold", fontSize: 16 }, children: "Solana Network" }),
+          walletState.solana.isConnected && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: {
+            ...mainStyles.badge,
+            backgroundColor: "#e8f5e8",
+            color: "#2d5a2d",
+            border: "1px solid #65F152",
+            fontSize: 11,
+            padding: "2px 6px"
+          }, children: [
+            "🟢 ",
+            truncateAddress(walletState.solana.address || "", 4, 3)
+          ] }) })
+        ] }),
+        walletState.solana.isConnected && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs(
             "select",
             {
-              style: mainStyles.input,
+              value: solanaMode,
+              onChange: (e) => handleSolanaModeChange(e.target.value),
+              style: {
+                padding: "4px 8px",
+                borderRadius: 4,
+                border: "1px solid #ddd",
+                fontSize: 12,
+                background: "#fff"
+              },
+              disabled: isAnyLoading,
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "classic", children: "Classic" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-manual", children: "Manual" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-auto", children: "Auto" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-external-sign", children: "Ext-Sign" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-external-tx", children: "Ext-TX" })
+              ]
+            }
+          ),
+          isConnectedOnTabSolana && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: {
+            background: "#65F152",
+            color: "#000",
+            fontWeight: "bold",
+            borderRadius: 3,
+            padding: "2px 6px",
+            fontSize: 10
+          }, children: "QW" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              type: "button",
+              style: {
+                ...mainStyles.button,
+                ...mainStyles.dangerButton,
+                padding: "4px 8px",
+                fontSize: 12
+              },
+              onClick: () => handleDisconnect("solana"),
+              disabled: isAnyLoading,
+              children: "✖"
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }, children: [
+        solanaWallets.length > 0 || tempSolanaWallets.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "select",
+            {
+              style: {
+                ...mainStyles.input,
+                flex: 1,
+                minWidth: 0,
+                fontSize: 14
+              },
               value: selectedSolanaWallet,
               onChange: (e) => setSelectedSolanaWallet(e.target.value),
               disabled: isAnyLoading,
               children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Sélectionner un wallet Solana..." }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Choisir un wallet Solana..." }),
                 [...solanaWallets, ...tempSolanaWallets].map((wallet) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: wallet.id, children: [
                   wallet.name,
                   " (",
-                  truncateAddress(wallet.address),
+                  truncateAddress(wallet.address, 4, 3),
                   ")",
-                  walletState.solana.isConnected && walletState.solana.address === wallet.address ? " ✓ Connecté" : ""
+                  walletState.solana.isConnected && walletState.solana.address === wallet.address ? " ✓" : ""
                 ] }, wallet.id))
               ]
             }
@@ -28110,112 +28188,155 @@ const WalletsTab = ({
             {
               type: "button",
               style: {
-                ...mainStyles.inputButton,
+                ...mainStyles.button,
+                ...mainStyles.primaryButton,
+                padding: "8px 12px",
+                fontSize: 14,
+                minWidth: 80,
                 ...(!selectedSolanaWallet || solanaLoading) && mainStyles.disabledButton
               },
               onClick: handleSolanaConnect,
               disabled: !selectedSolanaWallet || isAnyLoading,
-              children: solanaLoading ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: mainStyles.loadingContent, children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: mainStyles.spinner }) }) : walletState.solana.isConnected ? "Switch" : "Connect"
+              children: solanaLoading ? "⏳" : walletState.solana.isConnected ? "Switch" : "Connect"
             }
           )
-        ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { textAlign: "center", padding: "20px", color: "#6c757d" }, children: "Aucun wallet Solana enregistré" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { marginTop: 12 }, children: !showAddSolana ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+        ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: {
+          flex: 1,
+          textAlign: "center",
+          padding: "12px",
+          color: "#6c757d",
+          fontSize: 14,
+          fontStyle: "italic"
+        }, children: "Aucun wallet Solana configuré" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
           "button",
           {
             type: "button",
-            style: { ...mainStyles.button, ...mainStyles.secondaryButton },
-            onClick: () => setShowAddSolana(true),
+            style: {
+              ...mainStyles.button,
+              ...mainStyles.secondaryButton,
+              padding: "8px 12px",
+              fontSize: 14,
+              minWidth: 80
+            },
+            onClick: () => setShowAddSolana(!showAddSolana),
             disabled: isAnyLoading,
-            children: "+ Ajouter un wallet Solana"
+            children: showAddSolana ? "Annuler" : "+ Ajouter"
           }
-        ) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { border: "1px solid #ddd", borderRadius: 8, padding: 16, marginTop: 8 }, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginBottom: 12 }, children: [
+        )
+      ] }),
+      showAddSolana && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: {
+        backgroundColor: "#f8f9fa",
+        border: "1px solid #e9ecef",
+        borderRadius: 6,
+        padding: 12,
+        marginBottom: 8
+      }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, marginBottom: 8 }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              style: {
+                ...mainStyles.input,
+                flex: 1,
+                fontSize: 14
+              },
+              type: "text",
+              placeholder: "Nom du wallet",
+              value: newSolanaName,
+              onChange: (e) => setNewSolanaName(e.target.value),
+              disabled: isAnyLoading
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              style: {
+                ...mainStyles.input,
+                flex: 2,
+                fontSize: 14
+              },
+              type: "password",
+              placeholder: "Clé privée Solana (Base58)",
+              value: newSolanaKey,
+              onChange: (e) => setNewSolanaKey(e.target.value),
+              disabled: isAnyLoading
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { style: { display: "flex", alignItems: "center", fontSize: 12, color: "#6c757d" }, children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx(
               "input",
               {
-                style: { ...mainStyles.input, marginBottom: 8 },
-                type: "text",
-                placeholder: "Nom du wallet (ex: Mon Wallet Solana)",
-                value: newSolanaName,
-                onChange: (e) => setNewSolanaName(e.target.value),
+                type: "checkbox",
+                checked: newSolanaSave,
+                onChange: (e) => setNewSolanaSave(e.target.checked),
+                style: { marginRight: 6 },
                 disabled: isAnyLoading
               }
             ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                style: mainStyles.input,
-                type: "password",
-                placeholder: "Clé privée Solana (Base58 format)",
-                value: newSolanaKey,
-                onChange: (e) => setNewSolanaKey(e.target.value),
-                disabled: isAnyLoading
-              }
-            )
+            "Sauvegarder"
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8 }, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                type: "button",
-                style: { ...mainStyles.button, ...mainStyles.primaryButton },
-                onClick: handleAddSolanaWallet,
-                disabled: !newSolanaKey || !newSolanaName || isAnyLoading,
-                children: "Ajouter"
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                type: "button",
-                style: { ...mainStyles.button, ...mainStyles.secondaryButton },
-                onClick: () => {
-                  setShowAddSolana(false);
-                  setNewSolanaKey("");
-                  setNewSolanaName("");
-                },
-                disabled: isAnyLoading,
-                children: "Annuler"
-              }
-            )
-          ] })
-        ] }) }),
-        solanaWallets.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { marginTop: 16 }, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 14, fontWeight: "bold", marginBottom: 8 }, children: "Wallets Solana enregistrés:" }),
-          solanaWallets.map((wallet) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: {
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "8px 12px",
-            border: "1px solid #eee",
-            borderRadius: 4,
-            marginBottom: 4,
-            backgroundColor: walletState.solana.isConnected && walletState.solana.address === wallet.address ? "#e8f5e8" : "#f9f9f9"
-          }, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontWeight: "bold" }, children: [
-                wallet.name,
-                walletState.solana.isConnected && walletState.solana.address === wallet.address && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "#65F152", marginLeft: 8 }, children: "✓ Connecté" })
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { fontSize: 12, color: "#6c757d" }, children: truncateAddress(wallet.address) })
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                type: "button",
-                style: {
-                  ...mainStyles.button,
-                  ...mainStyles.dangerButton,
-                  padding: "4px 8px",
-                  fontSize: 12
-                },
-                onClick: () => handleRemoveWallet(wallet.id, "solana"),
-                disabled: isAnyLoading,
-                children: "✖"
-              }
-            )
-          ] }, wallet.id))
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              type: "button",
+              style: {
+                ...mainStyles.button,
+                ...mainStyles.primaryButton,
+                padding: "6px 12px",
+                fontSize: 14
+              },
+              onClick: handleAddSolanaWallet,
+              disabled: !newSolanaKey || !newSolanaName || isAnyLoading,
+              children: "Ajouter"
+            }
+          )
         ] })
+      ] }),
+      (solanaWallets.length > 0 || tempSolanaWallets.length > 0) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12 }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { color: "#6c757d", marginBottom: 4, fontWeight: "bold" }, children: [
+          "Wallets configurés (",
+          solanaWallets.length + tempSolanaWallets.length,
+          "):"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 4 }, children: [...solanaWallets, ...tempSolanaWallets].map((wallet) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: {
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          padding: "4px 8px",
+          border: "1px solid #ddd",
+          borderRadius: 4,
+          fontSize: 11,
+          backgroundColor: walletState.solana.isConnected && walletState.solana.address === wallet.address ? "#e8f5e8" : "#fff"
+        }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontWeight: "bold" }, children: wallet.name }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { color: "#6c757d" }, children: [
+            "(",
+            truncateAddress(wallet.address, 3, 2),
+            ")"
+          ] }),
+          walletState.solana.isConnected && walletState.solana.address === wallet.address && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "#65F152" }, children: "✓" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              type: "button",
+              style: {
+                background: "none",
+                border: "none",
+                color: "#dc3545",
+                cursor: "pointer",
+                padding: 0,
+                fontSize: 10
+              },
+              onClick: () => handleRemoveWallet(wallet.id, "solana"),
+              disabled: isAnyLoading,
+              title: "Supprimer",
+              children: "✖"
+            }
+          )
+        ] }, wallet.id)) })
       ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: mainStyles.warning, children: [
