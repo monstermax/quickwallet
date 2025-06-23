@@ -181,7 +181,8 @@ export const mainStyles = {
         maxWidth: '90vw',
         maxHeight: '90vh',
         overflow: 'hidden',
-        border: '2px solid #65F152'
+        border: '2px solid #65F152',
+        color: 'black',
     },
     header: {
         padding: '20px 24px',
