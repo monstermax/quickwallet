@@ -2,6 +2,14 @@
 
 import { NotificationType } from "../injected/injected"
 
+
+export type QuickwalletMode = 'classic'
+    | 'quickwallet-manual'
+    | 'quickwallet-auto' 
+    | 'quickwallet-external-sign'
+    | 'quickwallet-external-tx';
+
+
 export interface WalletState {
     evm: EVMWalletState
     solana: SolanaWalletState

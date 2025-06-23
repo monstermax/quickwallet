@@ -6,8 +6,6 @@ import { getTabStyles, mainStyles } from './WalletDialogStyles'
 
 interface SettingsTabProps {
     error: string | null
-    autoSign: boolean
-    setAutoSign: (autoSign: boolean) => void
     autoConnectDomains: { domain: string, enabled: boolean }[]
     setAutoConnectDomains: (domains: { domain: string, enabled: boolean }[]) => void
     autoConnectEnabled: boolean
@@ -18,8 +16,6 @@ interface SettingsTabProps {
 
 export const SettingsTab: React.FC<SettingsTabProps> = ({
     error,
-    autoSign,
-    setAutoSign,
     autoConnectDomains,
     setAutoConnectDomains,
     autoConnectEnabled,
@@ -27,7 +23,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     isDomainAllowed,
     setNotification
 }) => {
-    const tabStyles = getTabStyles({ autoSign, autoConnectEnabled })
+    const tabStyles = getTabStyles({ autoConnectEnabled })
 
     return (
         <div style={tabStyles.settingsContainer}>
@@ -36,22 +32,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     <strong>Error:</strong> {error}
                 </div>
             )}
-
-            {/* Auto Sign Transactions */}
-            <div style={tabStyles.settingRow}>
-                <div>
-                    <div style={tabStyles.settingLabel}>Auto Sign Transactions</div>
-                    <div style={tabStyles.settingDescription}>
-                        Automatically sign transactions without confirmation prompts (EVM & Solana)
-                    </div>
-                </div>
-                <div
-                    style={tabStyles.toggle}
-                    onClick={() => setAutoSign(!autoSign)}
-                >
-                    <div style={tabStyles.toggleKnob} />
-                </div>
-            </div>
 
             {/* Auto-connexion par domaine */}
             <div style={tabStyles.settingsSection}>

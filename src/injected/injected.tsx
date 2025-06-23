@@ -41,7 +41,7 @@ const QuickWalletApp: React.FC = () => {
         try {
             // Importer le service de stockage sécurisé
             const { secureStorage } = await import('../services/SecureStorage')
-            
+
             const keys = await secureStorage.loadKeys()
             if (!keys) return
 
@@ -116,7 +116,7 @@ const QuickWalletApp: React.FC = () => {
         const handleModeChange = (event: CustomEvent) => {
             const { chain, mode, active } = event.detail
             console.log(`Mode change received: ${chain} -> ${mode} (${active ? 'active' : 'inactive'})`)
-            
+
             // Passer l'événement aux services wallet (ils ont leurs propres listeners)
             // Pas besoin de faire quoi que ce soit ici, les services écoutent directement
         }

@@ -27,7 +27,7 @@ injectScript(chrome.runtime.getURL('injected.js'), 'module')
 async function triggerAutoConnect() {
     try {
         const currentDomain = window.location.hostname + (window.location.port ? ':' + window.location.port : '')
-        
+
         // Vérifier si le domaine est autorisé via le background script
         chrome.runtime.sendMessage(
             { action: 'checkDomainAllowed', domain: currentDomain },
@@ -36,7 +36,7 @@ async function triggerAutoConnect() {
                     console.error('Erreur lors de la vérification du domaine:', chrome.runtime.lastError.message)
                     return
                 }
-                
+
                 if (response.success && response.data) {
                     // Le domaine est autorisé, déclencher l'auto-connexion
                     window.dispatchEvent(new CustomEvent('QuickWalletEvent', {
@@ -55,10 +55,24 @@ async function triggerAutoConnect() {
 // Pont de communication entre la page web et le background script
 window.addEventListener('QuickWalletRequest', (event: any) => {
     const { requestId, action, data } = event.detail
-    
+
     chrome.runtime.sendMessage(
         { action, data },
         (response) => {
+            // Vérifier les erreurs de communication
+            if (chrome.runtime.lastError) {
+                console.error('Erreur de communication avec le background script:', chrome.runtime.lastError.message)
+                window.dispatchEvent(new CustomEvent('QuickWalletResponse', {
+                    detail: {
+                        requestId,
+                        success: false,
+                        data: null,
+                        error: `Erreur de communication: ${chrome.runtime.lastError.message}`
+                    }
+                }))
+                return
+            }
+
             // Renvoyer la réponse à la page web
             window.dispatchEvent(new CustomEvent('QuickWalletResponse', {
                 detail: {

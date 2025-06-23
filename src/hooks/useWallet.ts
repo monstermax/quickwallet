@@ -30,7 +30,7 @@ export const useWallet = () => {
 
     const evmWallet = walletManager.evmWallet
     const solanaWallet = walletManager.solanaWallet
-    const [autoSign, setAutoSign] = useState(() => walletManager.getAutoSign())
+    //const [autoSign, setAutoSign] = useState(() => walletManager.getAutoSign())
 
 
     const connectEVM = useCallback((privateKey: string) => {
@@ -124,9 +124,9 @@ export const useWallet = () => {
     }, [])
 
 
-    useEffect(() => {
-        walletManager.setAutoSign(autoSign)
-    }, [autoSign])
+    //useEffect(() => {
+    //    walletManager.setAutoSign(autoSign)
+    //}, [autoSign])
 
 
     return {
@@ -137,8 +137,8 @@ export const useWallet = () => {
         disconnectSolana,
         evmWallet,
         solanaWallet,
-        autoSign,
-        setAutoSign,
+        //autoSign,
+        //setAutoSign,
     }
 }
 

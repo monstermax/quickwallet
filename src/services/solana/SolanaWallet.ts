@@ -3,22 +3,24 @@
 import { Keypair, PublicKey, Transaction, Message } from '@solana/web3.js'
 import { decode } from 'bs58'
 import * as Noble from '@noble/ed25519';
+import { QuickwalletMode } from '../../types/wallet';
 
 
 export class SolanaWallet {
-    private keypair: Keypair | null = null
-    private autoSign: boolean = true
-    private isQuickWalletActive: boolean = false
-    private originalProviders: Map<any, any> = new Map()
+    private keypair: Keypair | null = null;
+    private isQuickWalletActive: boolean = false;
+    private quickWalletMode: QuickwalletMode = 'classic';
+    private originalProviders: Map<any, any> = new Map();
 
     constructor() {
         // Écouter les changements de mode
         window.addEventListener('QuickWalletModeChange', this.handleModeChange.bind(this))
     }
 
-    private handleModeChange = (event: CustomEvent) => {
+    private handleModeChange = (event: CustomEvent<{ chain: 'evm' | 'solana', mode: QuickwalletMode, active: boolean }>) => {
         if (event.detail.chain === 'solana') {
-            this.isQuickWalletActive = event.detail.active
+            this.isQuickWalletActive = event.detail.active;
+            this.quickWalletMode = event.detail.mode;
             console.log('Solana QuickWallet mode:', this.isQuickWalletActive ? 'ACTIVE' : 'INACTIVE')
         }
     }
@@ -41,10 +43,6 @@ export class SolanaWallet {
 
     getAddress(): string | null {
         return this.keypair?.publicKey.toBase58() || null
-    }
-
-    setAutoSign(autoSign: boolean): void {
-        this.autoSign = autoSign
     }
 
     injectWalletProvider(_window?: Window): void {
@@ -150,7 +148,7 @@ export class SolanaWallet {
             throw new Error('Solana wallet not connected')
         }
 
-        const approved = this.autoSign || confirm('Confirmer la transaction Solana?')
+        const approved = this.quickWalletMode === 'quickwallet-auto' || confirm('Confirmer la transaction Solana?')
 
         if (!approved) {
             throw new Error('User rejected the transaction')
@@ -172,7 +170,7 @@ export class SolanaWallet {
             throw new Error('Solana wallet not connected')
         }
 
-        const approved = this.autoSign || confirm('Confirmer la signature du message Solana?')
+        const approved = this.quickWalletMode === 'quickwallet-auto' || confirm('Confirmer la signature du message Solana?')
 
         if (!approved) {
             throw new Error('User rejected the message signing')

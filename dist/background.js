@@ -37,6 +37,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     case "deleteKeys":
       handleDeleteKeys().then((result) => sendResponse({ success: true, data: result })).catch((error) => sendResponse({ success: false, error: error.message }));
       return true;
+    case "saveWallets":
+      handleSaveWallets(request.data).then((result) => sendResponse({ success: true, data: result })).catch((error) => sendResponse({ success: false, error: error.message }));
+      return true;
+    case "loadWallets":
+      handleLoadWallets().then((result) => sendResponse({ success: true, data: result })).catch((error) => sendResponse({ success: false, error: error.message }));
+      return true;
+    case "addWallet":
+      handleAddWallet(request.data).then((result) => sendResponse({ success: true, data: result })).catch((error) => sendResponse({ success: false, error: error.message }));
+      return true;
+    case "removeWallet":
+      handleRemoveWallet(request.data).then((result) => sendResponse({ success: true, data: result })).catch((error) => sendResponse({ success: false, error: error.message }));
+      return true;
     case "saveAutoConnectSettings":
       handleSaveAutoConnectSettings(request.data).then((result) => sendResponse({ success: true, data: result })).catch((error) => sendResponse({ success: false, error: error.message }));
       return true;
@@ -118,5 +130,71 @@ async function handleCheckDomainAllowed(domain) {
     return settings.domains.includes(domain);
   } catch (error) {
     return false;
+  }
+}
+async function handleSaveWallets(wallets) {
+  try {
+    const encryptionKey = getEncryptionKey();
+    const encryptedWallets = {
+      wallets: wallets.wallets.map((wallet) => ({
+        ...wallet,
+        privateKey: simpleEncrypt(wallet.privateKey, encryptionKey)
+      })),
+      timestamp: wallets.timestamp
+    };
+    await chrome.storage.local.set({ "quickwallet_wallets": encryptedWallets });
+  } catch (error) {
+    throw new Error("Erreur lors de la sauvegarde des wallets");
+  }
+}
+async function handleLoadWallets() {
+  try {
+    const result = await chrome.storage.local.get(["quickwallet_wallets"]);
+    const encryptedWallets = result.quickwallet_wallets;
+    if (!encryptedWallets) {
+      return null;
+    }
+    const encryptionKey = getEncryptionKey();
+    const decryptedWallets = {
+      wallets: encryptedWallets.wallets.map((wallet) => ({
+        ...wallet,
+        privateKey: simpleDecrypt(wallet.privateKey, encryptionKey)
+      })),
+      timestamp: encryptedWallets.timestamp
+    };
+    return decryptedWallets;
+  } catch (error) {
+    throw new Error("Erreur lors du chargement des wallets");
+  }
+}
+async function handleAddWallet(wallet) {
+  try {
+    const existingWallets = await handleLoadWallets();
+    const wallets = existingWallets ? existingWallets.wallets : [];
+    const existingIndex = wallets.findIndex((w) => w.address === wallet.address && w.type === wallet.type);
+    if (existingIndex >= 0) {
+      wallets[existingIndex] = wallet;
+    } else {
+      wallets.push(wallet);
+    }
+    await handleSaveWallets({
+      wallets,
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    throw new Error("Erreur lors de l'ajout du wallet");
+  }
+}
+async function handleRemoveWallet(walletId) {
+  try {
+    const existingWallets = await handleLoadWallets();
+    if (!existingWallets) return;
+    const filteredWallets = existingWallets.wallets.filter((w) => w.id !== walletId);
+    await handleSaveWallets({
+      wallets: filteredWallets,
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    throw new Error("Erreur lors de la suppression du wallet");
   }
 }

@@ -1,10 +1,26 @@
 // src/services/SecureStorage.ts
 
 // Service pour communiquer de manière sécurisée avec le background script via le content script
+// context = injected script
+
 
 interface StoredKeys {
     evm?: string
     solana?: string
+    timestamp: number
+}
+
+interface StoredWallet {
+    id: string
+    name: string
+    type: 'evm' | 'solana'
+    privateKey: string
+    address: string
+    timestamp: number
+}
+
+interface StoredWallets {
+    wallets: StoredWallet[]
     timestamp: number
 }
 
@@ -18,7 +34,7 @@ class SecureStorage {
         return new Promise((resolve, reject) => {
             // Créer un ID unique pour cette requête
             const requestId = Math.random().toString(36).substr(2, 9)
-            
+
             // Écouter la réponse
             const handleResponse = (event: CustomEvent) => {
                 if (event.detail.requestId === requestId) {
@@ -30,9 +46,9 @@ class SecureStorage {
                     }
                 }
             }
-            
+
             window.addEventListener('QuickWalletResponse', handleResponse as EventListener)
-            
+
             // Envoyer la requête via le content script
             window.dispatchEvent(new CustomEvent('QuickWalletRequest', {
                 detail: {
@@ -41,7 +57,7 @@ class SecureStorage {
                     data
                 }
             }))
-            
+
             // Timeout après 10 secondes
             setTimeout(() => {
                 window.removeEventListener('QuickWalletResponse', handleResponse as EventListener)
@@ -84,7 +100,24 @@ class SecureStorage {
     getCurrentDomain(): string {
         return window.location.hostname + (window.location.port ? ':' + window.location.port : '')
     }
+
+    // Nouvelles méthodes pour gérer plusieurs wallets
+    async saveWallets(wallets: StoredWallets): Promise<void> {
+        await this.sendMessageToBackground('saveWallets', wallets)
+    }
+
+    async loadWallets(): Promise<StoredWallets | null> {
+        return await this.sendMessageToBackground('loadWallets')
+    }
+
+    async addWallet(wallet: StoredWallet): Promise<void> {
+        await this.sendMessageToBackground('addWallet', wallet)
+    }
+
+    async removeWallet(walletId: string): Promise<void> {
+        await this.sendMessageToBackground('removeWallet', walletId)
+    }
 }
 
 export const secureStorage = new SecureStorage()
-export type { StoredKeys, AutoConnectSettings }
+export type { StoredKeys, StoredWallet, StoredWallets, AutoConnectSettings }

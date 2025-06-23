@@ -8,7 +8,7 @@ class WalletManager {
     private static instance: WalletManager
     public evmWallet: EvmWallet
     public solanaWallet: SolanaWallet
-    private autoSign: boolean = true
+    //private autoSign: boolean = true
 
     private constructor() {
         this.evmWallet = new EvmWallet()
@@ -28,15 +28,15 @@ class WalletManager {
         return WalletManager.instance
     }
 
-    setAutoSign(enabled: boolean) {
-        this.autoSign = enabled
-        this.evmWallet.setAutoSign(enabled)
-        this.solanaWallet.setAutoSign(enabled)
-    }
+    //setAutoSign(enabled: boolean) {
+    //    this.autoSign = enabled
+    //    //this.evmWallet.setAutoSign(enabled)
+    //    //this.solanaWallet.setAutoSign(enabled)
+    //}
 
-    getAutoSign(): boolean {
-        return this.autoSign
-    }
+    //getAutoSign(): boolean {
+    //    return this.autoSign
+    //}
 }
 
 

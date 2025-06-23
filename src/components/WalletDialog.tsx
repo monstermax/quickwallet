@@ -21,21 +21,18 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
     const [evmKey, setEvmKey] = useState('')
     const [solanaKey, setSolanaKey] = useState('')
     const [evmKeySaved, setEvmKeySaved] = useState(true)
-    const [evmKeyTemp, setEvmKeyTemp] = useState<string | null>(null)
     const [solanaKeySaved, setSolanaKeySaved] = useState(true)
-    const [solanaKeyTemp, setSolanaKeyTemp] = useState<string | null>(null)
     const [evmLoading, setEvmLoading] = useState(false)
     const [solanaLoading, setSolanaLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [activeTab, setActiveTab] = useState<'wallets' | 'settings'>('wallets')
-    const { autoSign, setAutoSign } = useWallet()
 
     // États pour les fonctionnalités settings
     const [autoConnectDomains, setAutoConnectDomains] = useState<{ domain: string, enabled: boolean }[]>([])
     const [autoConnectEnabled, setAutoConnectEnabled] = useState(false)
     const [isDomainAllowed, setIsDomainAllowed] = useState(false)
 
-    const tabStyles = getTabStyles({ autoSign, autoConnectEnabled })
+    const tabStyles = getTabStyles({ autoConnectEnabled })
 
     useEffect(() => {
         if (isOpen) {
@@ -46,8 +43,6 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
             setSolanaLoading(false)
             setEvmKeySaved(true)
             setSolanaKeySaved(true)
-            setEvmKeyTemp(null)
-            setSolanaKeyTemp(null)
             loadAutoConnectSettings()
         }
     }, [isOpen])
@@ -85,6 +80,32 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
             const currentDomain = secureStorage.getCurrentDomain()
             const isAllowed = await secureStorage.checkDomainAllowed(currentDomain)
             setIsDomainAllowed(isAllowed)
+
+            // Charger les wallets sauvegardés
+            const walletsData = await secureStorage.loadWallets()
+            if (walletsData && walletsData.wallets.length > 0) {
+                // Si l'auto-connexion est activée et le domaine autorisé, connecter automatiquement
+                if (settings?.enabled && isAllowed) {
+                    // Prendre le premier wallet de chaque type pour l'auto-connexion
+                    const evmWallet = walletsData.wallets.find(w => w.type === 'evm')
+                    const solanaWallet = walletsData.wallets.find(w => w.type === 'solana')
+
+                    if (evmWallet) {
+                        try {
+                            await onConnect('evm', evmWallet.privateKey)
+                        } catch (error) {
+                            console.error('Auto-connexion EVM échouée:', error)
+                        }
+                    }
+                    if (solanaWallet) {
+                        try {
+                            await onConnect('solana', solanaWallet.privateKey)
+                        } catch (error) {
+                            console.error('Auto-connexion Solana échouée:', error)
+                        }
+                    }
+                }
+            }
         } catch (error) {
             console.error('Erreur lors du chargement des paramètres:', error)
         }
@@ -184,20 +205,10 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
                         onSolanaConnect={handleSolanaConnect}
                         onDisconnect={onDisconnect}
                         setNotification={setNotification}
-                        evmKeySaved={evmKeySaved}
-                        setEvmKeySaved={setEvmKeySaved}
-                        evmKeyTemp={evmKeyTemp}
-                        setEvmKeyTemp={setEvmKeyTemp}
-                        solanaKeySaved={solanaKeySaved}
-                        setSolanaKeySaved={setSolanaKeySaved}
-                        solanaKeyTemp={solanaKeyTemp}
-                        setSolanaKeyTemp={setSolanaKeyTemp}
                     />
                 ) : (
                     <SettingsTab
                         error={error}
-                        autoSign={autoSign}
-                        setAutoSign={setAutoSign}
                         autoConnectDomains={autoConnectDomains}
                         setAutoConnectDomains={setAutoConnectDomains}
                         autoConnectEnabled={autoConnectEnabled}

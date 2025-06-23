@@ -1,5 +1,7 @@
 // global.d.ts
 
+import { QuickwalletMode } from "./wallet"
+
 declare global {
     interface Window {
         ethereum?: {
@@ -48,7 +50,30 @@ declare global {
             }
         }
     }
+
+    // Étendre l'interface WindowEventMap pour inclure nos événements personnalisés
+    interface WindowEventMap {
+        'QuickWalletModeChange': CustomEvent<{
+            chain: 'evm' | 'solana'
+            mode: QuickwalletMode
+            active: boolean
+        }>
+        'QuickWalletAutoConnect': CustomEvent
+        'QuickWalletEvent': CustomEvent<{
+            action: string
+        }>
+        'QuickWalletRequest': CustomEvent<{
+            requestId: string
+            action: string
+            data?: any
+        }>
+        'QuickWalletResponse': CustomEvent<{
+            requestId: string
+            success: boolean
+            data?: any
+            error?: string
+        }>
+    }
 }
 
 export { }
-

@@ -41,6 +41,18 @@ window.addEventListener("QuickWalletRequest", (event) => {
   chrome.runtime.sendMessage(
     { action, data },
     (response) => {
+      if (chrome.runtime.lastError) {
+        console.error("Erreur de communication avec le background script:", chrome.runtime.lastError.message);
+        window.dispatchEvent(new CustomEvent("QuickWalletResponse", {
+          detail: {
+            requestId,
+            success: false,
+            data: null,
+            error: `Erreur de communication: ${chrome.runtime.lastError.message}`
+          }
+        }));
+        return;
+      }
       window.dispatchEvent(new CustomEvent("QuickWalletResponse", {
         detail: {
           requestId,
