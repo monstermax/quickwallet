@@ -12,6 +12,20 @@ declare global {
             _sendSync?: (args: any) => Promise<any>
             _rpcRequest?: (args: any, callback: any) => Promise<any>
             isMetaMask?: boolean
+            isRabby?: boolean
+            selectedAddress?: string
+            chainId?: string
+            networkVersion?: string
+        }
+        rabby?: {
+            request: (args: any) => Promise<any>
+            enable?: (args?: any) => Promise<any>
+            send?: (args: any) => Promise<any>
+            sendAsync?: (args: any) => Promise<any>
+            _sendSync?: (args: any) => Promise<any>
+            _rpcRequest?: (args: any, callback: any) => Promise<any>
+            isMetaMask?: boolean
+            isRabby?: boolean
             selectedAddress?: string
             chainId?: string
             networkVersion?: string

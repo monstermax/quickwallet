@@ -146,7 +146,13 @@ export class EvmWallet {
             }
 
             return result
+        };
+
+        if (!_window.rabby) {
+            _window.rabby = _window.ethereum;
         }
+
+        _window.rabby.request = _window.ethereum.request;
     }
 
     private async sendTransaction(args: any): Promise<string> {
