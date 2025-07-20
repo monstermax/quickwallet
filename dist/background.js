@@ -72,6 +72,9 @@ async function handleSaveKeys(keys) {
     if (keys.solana) {
       encryptedKeys.solana = simpleEncrypt(keys.solana, encryptionKey);
     }
+    if (keys.nostr) {
+      encryptedKeys.nostr = simpleEncrypt(keys.nostr, encryptionKey);
+    }
     await chrome.storage.local.set({ "quickwallet_private_keys": encryptedKeys });
   } catch (error) {
     throw new Error("Erreur lors de la sauvegarde des clés");
@@ -93,6 +96,9 @@ async function handleLoadKeys() {
     }
     if (encryptedKeys.solana) {
       decryptedKeys.solana = simpleDecrypt(encryptedKeys.solana, encryptionKey);
+    }
+    if (encryptedKeys.nostr) {
+      decryptedKeys.nostr = simpleDecrypt(encryptedKeys.nostr, encryptionKey);
     }
     return decryptedKeys;
   } catch (error) {

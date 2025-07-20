@@ -32,10 +32,13 @@ const QuickWalletApp: React.FC = () => {
         walletState,
         connectEVM,
         connectSolana,
+        connectNostr,
         disconnectEVM,
         disconnectSolana,
+        disconnectNostr,
         evmWallet,
         solanaWallet,
+        nostrWallet,
     } = useWallet()
 
     const {
@@ -61,6 +64,7 @@ const QuickWalletApp: React.FC = () => {
                 try {
                     await handleConnect('evm', keys.evm)
                     connectedCount++
+
                 } catch (error) {
                     console.error('Erreur auto-connexion EVM:', error)
                 }
@@ -71,8 +75,19 @@ const QuickWalletApp: React.FC = () => {
                 try {
                     await handleConnect('solana', keys.solana)
                     connectedCount++
+
                 } catch (error) {
                     console.error('Erreur auto-connexion Solana:', error)
+                }
+            }
+
+            // Auto-connexion NoStr
+            if (keys.nostr) {
+                try {
+                    await handleConnect('nostr', (keys as any).nostr)
+                    connectedCount++
+                } catch (error) {
+                    console.error('Erreur auto-connexion Nostr:', error)
                 }
             }
 
@@ -94,13 +109,16 @@ const QuickWalletApp: React.FC = () => {
         setIsDialogOpen(true)
     }
 
-    const handleConnect = async (chain: 'evm' | 'solana', privateKey: string) => {
+    const handleConnect = async (chain: 'evm' | 'solana' | 'nostr', privateKey: string) => {
         try {
             if (chain === 'evm') {
                 connectEVM(privateKey);
 
-            } else {
+            } else if (chain === 'solana') {
                 connectSolana(privateKey);
+
+            } else if (chain === 'nostr') {
+                connectNostr(privateKey);
             }
 
         } catch (error) {
@@ -112,11 +130,15 @@ const QuickWalletApp: React.FC = () => {
         }
     }
 
-    const handleDisconnect = (chain: 'evm' | 'solana') => {
+    const handleDisconnect = (chain: 'evm' | 'solana' | 'nostr') => {
         if (chain === 'evm') {
             disconnectEVM()
-        } else {
+
+        } else if (chain === 'solana') {
             disconnectSolana()
+
+        } else if (chain === 'nostr') {
+            disconnectNostr()
         }
     }
 
@@ -173,7 +195,23 @@ const QuickWalletApp: React.FC = () => {
                         disconnectSolana();
                     }
                 }
-            }
+            },
+            nostr: {
+                getPublicKey: () => walletState.nostr.publicKey,
+                setPrivateKey: (key: string | null) => {
+                    if (key) {
+                        try {
+                            connectNostr(key);
+
+                        } catch (e) {
+                            console.error('Failed to set Nostr private key:', e);
+                        }
+
+                    } else {
+                        disconnectNostr();
+                    }
+                }
+            },
         }
 
         // Écouter l'événement d'auto-connexion
@@ -186,7 +224,8 @@ const QuickWalletApp: React.FC = () => {
         return () => {
             window.removeEventListener('QuickWalletAutoConnect', handleAutoConnectEvent)
         }
-    }, [walletState, connectEVM, connectSolana, disconnectEVM, disconnectSolana, showConfirmation]);
+
+    }, [walletState, connectEVM, connectSolana, connectNostr, disconnectEVM, disconnectSolana, disconnectNostr, showConfirmation]);
 
     return (
         <>

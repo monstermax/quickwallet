@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from 'react'
 
-import { useWallet } from '../hooks/useWallet'
 import { secureStorage } from '../services/SecureStorage'
 import { WalletsTab } from './WalletsTab'
 import { SettingsTab } from './SettingsTab'
 import { getTabStyles, mainStyles } from './WalletDialogStyles'
 
 import type { WalletDialogProps } from '../types/wallet'
+
 
 export const WalletDialog: React.FC<WalletDialogProps> = ({
     isOpen,
@@ -20,10 +20,13 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
 }) => {
     const [evmKey, setEvmKey] = useState('')
     const [solanaKey, setSolanaKey] = useState('')
+    const [nostrKey, setNostrKey] = useState('')
     const [evmKeySaved, setEvmKeySaved] = useState(true)
     const [solanaKeySaved, setSolanaKeySaved] = useState(true)
+    const [nostrKeySaved, setNostrKeySaved] = useState(true)
     const [evmLoading, setEvmLoading] = useState(false)
     const [solanaLoading, setSolanaLoading] = useState(false)
+    const [nostrLoading, setNostrLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [activeTab, setActiveTab] = useState<'wallets' | 'settings'>('wallets')
 
@@ -38,11 +41,14 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
         if (isOpen) {
             setEvmKey('')
             setSolanaKey('')
+            setNostrKey('')
             setError(null)
             setEvmLoading(false)
             setSolanaLoading(false)
+            setNostrLoading(false)
             setEvmKeySaved(true)
             setSolanaKeySaved(true)
+            setNostrKeySaved(true)
             loadAutoConnectSettings()
         }
     }, [isOpen])
@@ -53,6 +59,7 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
             secureStorage.saveKeys({
                 evm: evmKey,
                 solana: (solanaKeySaved && solanaKey && solanaKey.length > 0) ? solanaKey : undefined,
+                nostr: (nostrKeySaved && nostrKey && nostrKey.length > 0) ? nostrKey : undefined,
                 timestamp: Date.now()
             })
         }
@@ -63,10 +70,22 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
             secureStorage.saveKeys({
                 evm: (evmKeySaved && evmKey && evmKey.length > 0) ? evmKey : undefined,
                 solana: solanaKey,
+                nostr: (nostrKeySaved && nostrKey && nostrKey.length > 0) ? nostrKey : undefined,
                 timestamp: Date.now()
             })
         }
     }, [solanaKey, solanaKeySaved])
+
+    useEffect(() => {
+        if (nostrKeySaved && nostrKey && nostrKey.length > 0) {
+            secureStorage.saveKeys({
+                evm: (evmKeySaved && evmKey && evmKey.length > 0) ? evmKey : undefined,
+                solana: (solanaKeySaved && solanaKey && solanaKey.length > 0) ? solanaKey : undefined,
+                nostr: nostrKey,
+                timestamp: Date.now()
+            })
+        }
+    }, [nostrKey, nostrKeySaved])
 
     const loadAutoConnectSettings = async () => {
         try {
@@ -77,6 +96,7 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
                     settings.domains.map(domain => ({ domain, enabled: true }))
                 )
             }
+
             const currentDomain = secureStorage.getCurrentDomain()
             const isAllowed = await secureStorage.checkDomainAllowed(currentDomain)
             setIsDomainAllowed(isAllowed)
@@ -93,6 +113,7 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
                     if (evmWallet) {
                         try {
                             await onConnect('evm', evmWallet.privateKey)
+
                         } catch (error) {
                             console.error('Auto-connexion EVM échouée:', error)
                         }
@@ -100,12 +121,14 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
                     if (solanaWallet) {
                         try {
                             await onConnect('solana', solanaWallet.privateKey)
+
                         } catch (error) {
                             console.error('Auto-connexion Solana échouée:', error)
                         }
                     }
                 }
             }
+
         } catch (error) {
             console.error('Erreur lors du chargement des paramètres:', error)
         }
@@ -137,17 +160,38 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
         try {
             await onConnect('solana', solanaKey)
             setSolanaKey('')
+
         } catch (error) {
             console.error('Solana connection failed:', error)
             setError(error instanceof Error ? error.message : 'Solana connection failed')
+
         } finally {
             setSolanaLoading(false)
         }
     }
 
+    const handleNostrConnect = async () => {
+        if (!nostrKey) return
+
+        setNostrLoading(true)
+        setError(null)
+
+        try {
+            await onConnect('nostr', nostrKey)
+            setNostrKey('')
+
+        } catch (error) {
+            console.error('Nostr connection failed:', error)
+            setError(error instanceof Error ? error.message : 'Nostr connection failed')
+
+        } finally {
+            setNostrLoading(false)
+        }
+    }
+
     if (!isOpen) return null
 
-    const isAnyLoading = evmLoading || solanaLoading
+    const isAnyLoading = evmLoading || solanaLoading || nostrLoading
 
     return (
         <div
@@ -158,7 +202,6 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
                 <div style={mainStyles.header}>
                     <div>
                         <span style={mainStyles.title}>QuickWallet</span>
-                        <span style={mainStyles.subtitle}>React Edition</span>
                     </div>
                     <button
                         style={mainStyles.closeButton}
@@ -198,11 +241,15 @@ export const WalletDialog: React.FC<WalletDialogProps> = ({
                         setEvmKey={setEvmKey}
                         solanaKey={solanaKey}
                         setSolanaKey={setSolanaKey}
+                        nostrKey={nostrKey}
+                        setNostrKey={setNostrKey}
                         evmLoading={evmLoading}
                         solanaLoading={solanaLoading}
+                        nostrLoading={nostrLoading}
                         isAnyLoading={isAnyLoading}
                         onEvmConnect={handleEvmConnect}
                         onSolanaConnect={handleSolanaConnect}
+                        onNostrConnect={handleNostrConnect}
                         onDisconnect={onDisconnect}
                         setNotification={setNotification}
                     />

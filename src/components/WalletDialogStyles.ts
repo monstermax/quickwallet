@@ -213,7 +213,7 @@ export const mainStyles = {
         padding: '4px'
     },
     body: {
-        padding: '24px'
+        padding: '10px'
     },
     section: {
         marginBottom: '24px'

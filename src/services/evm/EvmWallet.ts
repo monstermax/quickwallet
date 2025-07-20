@@ -17,17 +17,21 @@ export class EvmWallet {
     private isQuickWalletActive: boolean = false;
     private quickWalletMode: QuickwalletMode = 'classic';
     private originalRequest: any = null;
+    private debug: boolean = false;
 
     constructor() {
         // Écouter les changements de mode
         window.addEventListener('QuickWalletModeChange', this.handleModeChange.bind(this))
     }
 
-    private handleModeChange = (event: CustomEvent<{ chain: 'evm' | 'solana', mode: QuickwalletMode, active: boolean }>) => {
+    private handleModeChange = (event: CustomEvent<{ chain: 'evm' | 'solana' | 'nostr', mode: QuickwalletMode, active: boolean }>) => {
         if (event.detail.chain === 'evm') {
             this.isQuickWalletActive = event.detail.active;
             this.quickWalletMode = event.detail.mode;
-            console.log('EVM QuickWallet mode:', this.isQuickWalletActive ? 'ACTIVE' : 'INACTIVE')
+
+            if (this.debug) {
+                console.log('EVM QuickWallet mode:', this.isQuickWalletActive ? 'ACTIVE' : 'INACTIVE')
+            }
         }
     }
 
@@ -47,6 +51,14 @@ export class EvmWallet {
         this.chainId = chainId
     }
 
+    getDebug(): boolean {
+        return this.debug
+    }
+
+    setDebug(debug: boolean): void {
+        this.debug = debug
+    }
+
     injectWalletProvider(_window?: Window): void {
         _window = _window || window;
         if (!_window.ethereum) return
@@ -58,7 +70,9 @@ export class EvmWallet {
 
         // Intercepter ethereum.request
         _window.ethereum.request = async (args: any) => {
-            console.log('ethereum.request intercepted:', args, 'QuickWallet active:', this.isQuickWalletActive)
+            if (this.debug) {
+                console.log('ethereum.request intercepted:', args, 'QuickWallet active:', this.isQuickWalletActive)
+            }
 
             switch (args.method) {
                 case 'wallet_addEthereumChain':
@@ -82,11 +96,15 @@ export class EvmWallet {
             if (this.isQuickWalletActive && this.wallet) {
                 switch (args.method) {
                     case 'eth_requestAccounts':
-                        console.log('QuickWallet handling eth_requestAccounts')
+                        if (this.debug) {
+                            console.log('QuickWallet handling eth_requestAccounts')
+                        }
                         return [this.wallet.address];
 
                     case 'eth_sendTransaction':
-                        console.log('QuickWallet handling eth_sendTransaction');
+                        if (this.debug) {
+                            console.log('QuickWallet handling eth_sendTransaction');
+                        }
 
                         if (['quickwallet-external-tx', 'quickwallet-external-sign'].includes(this.quickWalletMode)) {
                             return await this.sendTransactionExternal(args);
@@ -101,7 +119,10 @@ export class EvmWallet {
                             // TODO
                         }
                         if (this.quickWalletMode === 'quickwallet-auto') {
-                            console.log('QuickWallet handling personal_sign')
+                            if (this.debug) {
+                                console.log('QuickWallet handling personal_sign')
+                            }
+
                             return await this.signMessage(args);
                         }
                         if (this.quickWalletMode === 'quickwallet-external-sign' || this.quickWalletMode === 'quickwallet-external-tx') {
@@ -110,7 +131,9 @@ export class EvmWallet {
                         break;
 
                     case 'eth_signTypedData_v4':
-                        console.log('QuickWallet handling eth_signTypedData_v4')
+                        if (this.debug) {
+                            console.log('QuickWallet handling eth_signTypedData_v4')
+                        }
                         // return await this.signTypedData(args); // TODO: a debugger
                         break;
 
@@ -142,7 +165,9 @@ export class EvmWallet {
             }
 
             if (args.method === 'eth_sendTransaction') {
-                console.log('eth_sendTransaction result:', result);
+                if (this.debug) {
+                    console.log('eth_sendTransaction result:', result);
+                }
             }
 
             return result
@@ -422,7 +447,9 @@ if (!approved) {
                 parsedData.message
             );
 
-            console.log('signature:', signature)
+            if (this.debug) {
+                console.log('signature:', signature)
+            }
 
             return signature;
 

@@ -6,7 +6,7 @@
 interface StoredWallet {
     id: string
     name: string
-    type: 'evm' | 'solana'
+    type: 'evm' | 'solana' | 'nostr'
     privateKey: string
     address: string
     timestamp: number
@@ -22,6 +22,7 @@ interface StoredWallets {
 interface StoredKeys {
     evm?: string
     solana?: string
+    nostr?: string 
     timestamp: number
 }
 
@@ -146,8 +147,12 @@ async function handleSaveKeys(keys: StoredKeys): Promise<void> {
         if (keys.solana) {
             encryptedKeys.solana = simpleEncrypt(keys.solana, encryptionKey)
         }
+        if (keys.nostr) {
+            encryptedKeys.nostr = simpleEncrypt(keys.nostr, encryptionKey)
+        }
 
         await chrome.storage.local.set({ 'quickwallet_private_keys': encryptedKeys })
+
     } catch (error) {
         throw new Error('Erreur lors de la sauvegarde des clés')
     }
@@ -173,8 +178,12 @@ async function handleLoadKeys(): Promise<StoredKeys | null> {
         if (encryptedKeys.solana) {
             decryptedKeys.solana = simpleDecrypt(encryptedKeys.solana, encryptionKey)
         }
+        if (encryptedKeys.nostr) {
+            decryptedKeys.nostr = simpleDecrypt(encryptedKeys.nostr, encryptionKey)
+        }
 
         return decryptedKeys
+
     } catch (error) {
         throw new Error('Erreur lors du chargement des clés')
     }

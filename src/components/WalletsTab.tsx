@@ -4,10 +4,16 @@ import React, { useState, useEffect } from 'react'
 import { ethers } from 'ethers'
 import { Keypair } from '@solana/web3.js'
 import { decode } from 'bs58'
+import { getPublicKey, nip19 } from 'nostr-tools'
+import { hexToBytes } from '@noble/hashes/utils'
+
 import { secureStorage, type StoredWallet } from '../services/SecureStorage'
 import { validateEvmPrivateKey, validateSolanaPrivateKey } from '../services/validation'
 import { mainStyles, getTabStyles } from './WalletDialogStyles'
+import { validateNostrPrivateKey } from '../services/validation'
+
 import type { QuickwalletMode, WalletState } from '../types/wallet'
+
 
 interface WalletsTabProps {
     walletState: WalletState
@@ -16,12 +22,16 @@ interface WalletsTabProps {
     setEvmKey: (key: string) => void
     solanaKey: string
     setSolanaKey: (key: string) => void
+    nostrKey: string
+    setNostrKey: (key: string) => void
     evmLoading: boolean
     solanaLoading: boolean
+    nostrLoading: boolean
     isAnyLoading: boolean
     onEvmConnect: () => void
     onSolanaConnect: () => void
-    onDisconnect: (chain: 'evm' | 'solana') => void
+    onNostrConnect: () => void
+    onDisconnect: (chain: 'evm' | 'solana' | 'nostr') => void
     setNotification: (notification: any) => void
 }
 
@@ -34,39 +44,57 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
     setEvmKey,
     solanaKey,
     setSolanaKey,
+    nostrKey,
+    setNostrKey,
     evmLoading,
     solanaLoading,
+    nostrLoading,
     isAnyLoading,
     onEvmConnect,
     onSolanaConnect,
+    onNostrConnect,
     onDisconnect,
     setNotification,
 }) => {
     // États pour les wallets stockés de manière sécurisée
     const [evmWallets, setEvmWallets] = useState<StoredWallet[]>([])
     const [solanaWallets, setSolanaWallets] = useState<StoredWallet[]>([])
+    const [nostrWallets, setNostrWallets] = useState<StoredWallet[]>([])
+
     const [selectedEvmWallet, setSelectedEvmWallet] = useState<string>('')
     const [selectedSolanaWallet, setSelectedSolanaWallet] = useState<string>('')
+    const [selectedNostrWallet, setSelectedNostrWallet] = useState<string>('')
 
     // États pour les wallets temporaires (en mémoire uniquement)
     const [tempEvmWallets, setTempEvmWallets] = useState<StoredWallet[]>([])
     const [tempSolanaWallets, setTempSolanaWallets] = useState<StoredWallet[]>([])
+    const [tempNostrWallets, setTempNostrWallets] = useState<StoredWallet[]>([])
 
     // États pour l'ajout de nouveaux wallets
     const [showAddEvm, setShowAddEvm] = useState(false)
     const [showAddSolana, setShowAddSolana] = useState(false)
+    const [showAddNostr, setShowAddNostr] = useState(false)
+
     const [newEvmKey, setNewEvmKey] = useState('')
     const [newEvmName, setNewEvmName] = useState('')
     const [newEvmSave, setNewEvmSave] = useState(false)
+
     const [newSolanaKey, setNewSolanaKey] = useState('')
     const [newSolanaName, setNewSolanaName] = useState('')
     const [newSolanaSave, setNewSolanaSave] = useState(false)
 
+    const [newNostrKey, setNewNostrKey] = useState('')
+    const [newNostrName, setNewNostrName] = useState('')
+    const [newNostrSave, setNewNostrSave] = useState(false)
+
     // Mode de signature sélectionné pour chaque wallet
     const [evmMode, setEvmMode] = useState<QuickwalletMode>('classic')
     const [solanaMode, setSolanaMode] = useState<QuickwalletMode>('classic')
+    const [nostrMode, setNostrMode] = useState<QuickwalletMode>('classic')
+
     const [isConnectedOnTabEvm, setIsConnectedOnTabEvm] = useState(false)
     const [isConnectedOnTabSolana, setIsConnectedOnTabSolana] = useState(false)
+    const [isConnectedOnTabNostr, setIsConnectedOnTabNostr] = useState(false)
 
     const tabStyles = getTabStyles({ autoSign: false, autoConnectEnabled: false })
 
@@ -74,6 +102,7 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
     useEffect(() => {
         loadWallets()
     }, [])
+
 
     // Mettre à jour la sélection quand un wallet se connecte
     useEffect(() => {
@@ -94,10 +123,21 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
         }
     }, [walletState.solana.isConnected, walletState.solana.address, solanaWallets])
 
+    useEffect(() => {
+        if (walletState.nostr.isConnected && walletState.nostr.publicKey) {
+            const connectedWallet = nostrWallets.find(w => w.address === walletState.nostr.publicKey)
+            if (connectedWallet) {
+                setSelectedNostrWallet(connectedWallet.id)
+            }
+        }
+    }, [walletState.nostr.isConnected, walletState.nostr.publicKey, nostrWallets])
+
+
     // Relire les modes sauvegardés au montage
     useEffect(() => {
         const savedEvmMode = localStorage.getItem('quickwallet-evm-mode') as QuickwalletMode;
         const savedSolanaMode = localStorage.getItem('quickwallet-solana-mode') as QuickwalletMode;
+        const savedNostrMode = localStorage.getItem('quickwallet-nostr-mode') as QuickwalletMode;
 
         if (savedEvmMode) {
             setEvmMode(savedEvmMode)
@@ -105,7 +145,11 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
         if (savedSolanaMode) {
             setSolanaMode(savedSolanaMode)
         }
+        if (savedNostrMode) {
+            setNostrMode(savedNostrMode)
+        }
     }, [])
+
 
     // Activer QuickWallet quand les wallets se connectent avec le mode quickwallet
     useEffect(() => {
@@ -122,6 +166,14 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
         }
     }, [walletState.solana.isConnected])
 
+    useEffect(() => {
+        const savedNostrMode = localStorage.getItem('quickwallet-nostr-mode') as QuickwalletMode;
+        if (savedNostrMode !== 'classic' && walletState.nostr.isConnected) {
+            updateQuickWalletMode('nostr', savedNostrMode, true)
+        }
+    }, [walletState.nostr.isConnected])
+
+
     const loadWallets = async () => {
         console.log('Loading wallets...')
         try {
@@ -132,8 +184,10 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
                     console.log('Loaded from secure system:', walletsData)
                     const evmList = walletsData.wallets.filter(w => w.type === 'evm')
                     const solanaList = walletsData.wallets.filter(w => w.type === 'solana')
+                    const nostrList = walletsData.wallets.filter(w => w.type === 'nostr')
                     setEvmWallets(evmList)
                     setSolanaWallets(solanaList)
+                    setNostrWallets(nostrList)
                     return
                 }
             } catch (error) {
@@ -170,30 +224,49 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
                             timestamp: oldKeys.timestamp
                         })
                     }
+                    if (oldKeys.nostr) {
+                        const publicKey = getPublicKey(hexToBytes((oldKeys as any).nostr))
+                        fallbackWallets.push({
+                            id: 'legacy-nostr-' + Date.now(),
+                            name: 'Wallet Nostr Principal',
+                            type: 'nostr',
+                            privateKey: (oldKeys as any).nostr,
+                            address: publicKey,
+                            timestamp: oldKeys.timestamp
+                        })
+                    }
 
                     const evmList = fallbackWallets.filter(w => w.type === 'evm')
                     const solanaList = fallbackWallets.filter(w => w.type === 'solana')
+                    const nostrList = fallbackWallets.filter(w => w.type === 'nostr')
                     setEvmWallets(evmList)
                     setSolanaWallets(solanaList)
+                    setNostrWallets(nostrList)
+
                 } else {
                     console.log('No secure keys found')
                     setEvmWallets([])
                     setSolanaWallets([])
+                    setNostrWallets([])
                 }
+
             } catch (error) {
                 console.log('Error loading secure keys:', error)
                 setEvmWallets([])
                 setSolanaWallets([])
+                setNostrWallets([])
             }
+
         } catch (error) {
             console.error('Erreur lors du chargement des wallets:', error)
             setEvmWallets([])
             setSolanaWallets([])
+            setNostrWallets([])
         }
     }
 
     // Fonction pour activer/désactiver QuickWallet selon le mode
-    const updateQuickWalletMode = (chain: 'evm' | 'solana', mode: QuickwalletMode, connected: boolean) => {
+    const updateQuickWalletMode = (chain: 'evm' | 'solana' | 'nostr', mode: QuickwalletMode, connected: boolean) => {
         const shouldActivate = mode !== 'classic' && connected
 
         // Envoyer un événement pour activer/désactiver QuickWallet
@@ -211,6 +284,7 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
             setIsConnectedOnTabSolana(shouldActivate)
         }
     }
+
 
     // Gestionnaires pour les changements de mode EVM
     const handleEvmModeChange = (mode: QuickwalletMode) => {
@@ -260,6 +334,30 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
         }
     }
 
+    const handleNostrModeChange = (mode: QuickwalletMode) => {
+        setNostrMode(mode)
+        localStorage.setItem('quickwallet-nostr-mode', mode)
+
+        if (walletState.nostr.isConnected) {
+            updateQuickWalletMode('nostr', mode, true)
+
+            const modeMessages: Record<QuickwalletMode, string> = {
+                'classic': 'Mode Classic activé pour Nostr - utilisez nos2x pour signer',
+                'quickwallet-manual': 'Mode QuickWallet activé pour Nostr - signature manuelle',
+                'quickwallet-auto': 'Mode QuickWallet activé pour Nostr - signature automatique',
+                'quickwallet-external-sign': 'Mode External-Sign sélectionné pour Nostr - non implémenté',
+                'quickwallet-external-tx': 'Mode External-TX sélectionné pour Nostr - non implémenté',
+            }
+
+            setNotification({
+                show: true,
+                message: modeMessages[mode],
+                type: mode === 'quickwallet-external-sign' ? 'warning' : 'info'
+            })
+        }
+    }
+
+
     const handleEvmConnect = async () => {
         const wallet = evmWallets.find(w => w.id === selectedEvmWallet)
         if (!wallet) return
@@ -286,12 +384,27 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
         }
     }
 
-    const handleDisconnect = (chain: 'evm' | 'solana') => {
+    // Ajouter les handlers pour Nostr
+    const handleNostrConnect = async () => {
+        const wallet = nostrWallets.find(w => w.id === selectedNostrWallet)
+        if (!wallet) return
+
+        setNostrKey(wallet.privateKey)
+        await onNostrConnect()
+
+        if (nostrMode !== 'classic') {
+            updateQuickWalletMode('nostr', nostrMode, true)
+        }
+    }
+
+
+    const handleDisconnect = (chain: 'evm' | 'solana' | 'nostr') => {
         // Désactiver QuickWallet avant de déconnecter
         updateQuickWalletMode(chain, 'classic', false)
 
         onDisconnect(chain)
     }
+
 
     const handleAddEvmWallet = async () => {
         if (!newEvmKey || !newEvmName) return
@@ -456,6 +569,7 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
                 message: newSolanaSave ? 'Wallet Solana sauvegardé et connecté avec succès' : 'Wallet Solana connecté temporairement',
                 type: 'success'
             })
+
         } catch (error) {
             console.error('Error in handleAddSolanaWallet:', error)
             setNotification({
@@ -466,12 +580,102 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
         }
     }
 
-    const handleRemoveWallet = async (walletId: string, type: 'evm' | 'solana') => {
+    const handleAddNostrWallet = async () => {
+        if (!newNostrKey || !newNostrName) return
+        console.log('Adding Nostr wallet:', newNostrName, 'Save:', newNostrSave)
+
+        try {
+            const validKey = validateNostrPrivateKey(newNostrKey)
+
+            if (!validKey) {
+                setNotification({
+                    show: true,
+                    message: 'Clé privée Nostr invalide',
+                    type: 'error'
+                })
+                return
+            }
+
+            const publicKey = getPublicKey(hexToBytes(validKey))
+
+            // Vérifier si le wallet existe déjà
+            const allNostrWallets = [...nostrWallets, ...tempNostrWallets]
+            const existingWallet = allNostrWallets.find(w => w.address === publicKey)
+
+            if (existingWallet) {
+                setNotification({
+                    show: true,
+                    message: 'Ce wallet existe déjà',
+                    type: 'warning'
+                })
+                return
+            }
+
+            // Connecter le nouveau wallet
+            setNostrKey(validKey)
+            await onNostrConnect()
+            console.log('Connected Nostr wallet')
+
+            const newWallet: StoredWallet = {
+                id: 'nostr-' + Date.now(),
+                name: newNostrName,
+                type: 'nostr',
+                privateKey: validKey,
+                address: publicKey,
+                timestamp: Date.now()
+            }
+
+            if (newNostrSave) {
+                try {
+                    await secureStorage.addWallet(newWallet)
+                    console.log('Saved wallet securely')
+                    await loadWallets()
+
+                } catch (error) {
+                    console.error('Error saving wallet securely:', error)
+                    setNotification({
+                        show: true,
+                        message: 'Erreur lors de la sauvegarde sécurisée. Wallet connecté temporairement.',
+                        type: 'warning'
+                    })
+                    setTempNostrWallets(prev => [...prev, newWallet])
+                }
+
+            } else {
+                setTempNostrWallets(prev => [...prev, newWallet])
+                console.log('Added wallet to temporary memory')
+            }
+
+            setNewNostrKey('')
+            setNewNostrName('')
+            setNewNostrSave(false)
+            setShowAddNostr(false)
+            setNotification({
+                show: true,
+                message: newNostrSave ? 'Wallet Nostr sauvegardé et connecté avec succès' : 'Wallet Nostr connecté temporairement',
+                type: 'success'
+            })
+
+        } catch (error) {
+            console.error('Error in handleAddNostrWallet:', error)
+            setNotification({
+                show: true,
+                message: 'Erreur lors de l\'ajout du wallet Nostr: ' + (error instanceof Error ? error.message : 'Erreur inconnue'),
+                type: 'error'
+            })
+        }
+    }
+
+
+    const handleRemoveWallet = async (walletId: string, type: 'evm' | 'solana' | 'nostr') => {
         try {
             // Trouver le wallet à supprimer dans les listes appropriées
-            const allWallets = type === 'evm' ? [...evmWallets, ...tempEvmWallets] : [...solanaWallets, ...tempSolanaWallets]
+            const allWallets = type === 'evm' ? [...evmWallets, ...tempEvmWallets] : 
+                              type === 'solana' ? [...solanaWallets, ...tempSolanaWallets] :
+                              [...nostrWallets, ...tempNostrWallets];
+
             const walletToRemove = allWallets.find(w => w.id === walletId)
-            
+
             if (!walletToRemove) {
                 setNotification({
                     show: true,
@@ -488,15 +692,21 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
             if (type === 'solana' && walletState.solana.isConnected && walletState.solana.address === walletToRemove.address) {
                 handleDisconnect('solana')
             }
+            if (type === 'nostr' && walletState.nostr.isConnected && walletState.nostr.publicKey === walletToRemove.address) {
+                handleDisconnect('nostr')
+            }
 
             // Vérifier si c'est un wallet sécurisé ou temporaire
-            const isSecureWallet = type === 'evm' ? evmWallets.find(w => w.id === walletId) : solanaWallets.find(w => w.id === walletId)
-            
+            const isSecureWallet = type === 'evm' ? evmWallets.find(w => w.id === walletId) : 
+                                  type === 'solana' ? solanaWallets.find(w => w.id === walletId) :
+                                  nostrWallets.find(w => w.id === walletId)
+
             if (isSecureWallet) {
                 // Supprimer du stockage sécurisé
                 try {
                     await secureStorage.removeWallet(walletId)
                     console.log('Removed wallet from secure storage')
+
                 } catch (error) {
                     console.error('Error removing from secure storage:', error)
                     setNotification({
@@ -505,12 +715,17 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
                         type: 'warning'
                     })
                 }
+
             } else {
                 // Supprimer des wallets temporaires
                 if (type === 'evm') {
                     setTempEvmWallets(prev => prev.filter(w => w.id !== walletId))
-                } else {
+
+                } else if (type === 'solana') {
                     setTempSolanaWallets(prev => prev.filter(w => w.id !== walletId))
+
+                } else {
+                    setTempNostrWallets(prev => prev.filter(w => w.id !== walletId))
                 }
             }
 
@@ -520,8 +735,12 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
             // Réinitialiser la sélection
             if (type === 'evm') {
                 setSelectedEvmWallet('')
-            } else {
+
+            } else if (type === 'solana') {
                 setSelectedSolanaWallet('')
+
+            } else {
+                setSelectedNostrWallet('')
             }
 
             setNotification({
@@ -529,6 +748,7 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
                 message: `Wallet ${type.toUpperCase()} supprimé`,
                 type: 'info'
             })
+
         } catch (error) {
             console.error('Error in handleRemoveWallet:', error)
             setNotification({
@@ -557,8 +777,8 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
                 ...mainStyles.section,
                 border: '1px solid #e0e0e0',
                 borderRadius: 8,
-                padding: '16px',
-                marginBottom: 16
+                padding: '8px',
+                marginBottom: 8
             }}>
                 {/* Header avec statut */}
                 <div style={{
@@ -571,7 +791,7 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 18 }}>🦊</span>
-                        <span style={{ fontWeight: 'bold', fontSize: 16 }}>EVM Networks</span>
+                        <span style={{ fontWeight: 'bold', fontSize: 12 }}>EVM Networks</span>
                         {walletState.evm.isConnected && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                 <span style={{
@@ -697,10 +917,10 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
                             fontSize: 14,
                             fontStyle: 'italic'
                         }}>
-                            Aucun wallet EVM configuré
+                            No wallet
                         </div>
                     )}
-                    
+
                     <button
                         type="button"
                         style={{
@@ -784,7 +1004,7 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
                 {(evmWallets.length > 0 || tempEvmWallets.length > 0) && (
                     <div style={{ fontSize: 12 }}>
                         <div style={{ color: '#6c757d', marginBottom: 4, fontWeight: 'bold' }}>
-                            Wallets configurés ({evmWallets.length + tempEvmWallets.length}):
+                            All wallets ({evmWallets.length + tempEvmWallets.length}):
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                             {[...evmWallets, ...tempEvmWallets].map(wallet => (
@@ -831,8 +1051,8 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
                 ...mainStyles.section,
                 border: '1px solid #e0e0e0',
                 borderRadius: 8,
-                padding: '16px',
-                marginBottom: 16
+                padding: '8px',
+                marginBottom: 8
             }}>
                 {/* Header avec statut */}
                 <div style={{
@@ -845,7 +1065,7 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 18 }}>👾</span>
-                        <span style={{ fontWeight: 'bold', fontSize: 16 }}>Solana Network</span>
+                        <span style={{ fontWeight: 'bold', fontSize: 12 }}>Solana Network</span>
                         {walletState.solana.isConnected && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                 <span style={{
@@ -861,7 +1081,7 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
                             </div>
                         )}
                     </div>
-                    
+
                     {/* Actions rapides */}
                     {walletState.solana.isConnected && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -960,10 +1180,10 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
                             fontSize: 14,
                             fontStyle: 'italic'
                         }}>
-                            Aucun wallet Solana configuré
+                            No wallet
                         </div>
                     )}
-                    
+
                     <button
                         type="button"
                         style={{
@@ -1047,7 +1267,7 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
                 {(solanaWallets.length > 0 || tempSolanaWallets.length > 0) && (
                     <div style={{ fontSize: 12 }}>
                         <div style={{ color: '#6c757d', marginBottom: 4, fontWeight: 'bold' }}>
-                            Wallets configurés ({solanaWallets.length + tempSolanaWallets.length}):
+                            All wallets ({solanaWallets.length + tempSolanaWallets.length}):
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                             {[...solanaWallets, ...tempSolanaWallets].map(wallet => (
@@ -1077,6 +1297,269 @@ export const WalletsTab: React.FC<WalletsTabProps> = ({
                                             fontSize: 10
                                         }}
                                         onClick={() => handleRemoveWallet(wallet.id, 'solana')}
+                                        disabled={isAnyLoading}
+                                        title="Supprimer"
+                                    >
+                                        ✖
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* NoStr Section */}
+            <div style={{
+                ...mainStyles.section,
+                border: '1px solid #e0e0e0',
+                borderRadius: 8,
+                padding: '8px',
+                marginBottom: 8
+            }}>
+                {/* Header avec statut */}
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 12,
+                    paddingBottom: 8,
+                    borderBottom: '1px solid #f0f0f0'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 18 }}>🟣</span>
+                        <span style={{ fontWeight: 'bold', fontSize: 12 }}>Nostr Network</span>
+                        {walletState.nostr.isConnected && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{
+                                    ...mainStyles.badge,
+                                    backgroundColor: '#e8f5e8',
+                                    color: '#2d5a2d',
+                                    border: '1px solid #65F152',
+                                    fontSize: 11,
+                                    padding: '2px 6px'
+                                }}>
+                                    🟢 {truncateAddress(walletState.nostr.publicKey || '', 4, 3)}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Actions rapides */}
+                    {walletState.nostr.isConnected && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <select
+                                value={nostrMode}
+                                onChange={e => handleNostrModeChange(e.target.value as QuickwalletMode)}
+                                style={{
+                                    padding: '4px 8px',
+                                    borderRadius: 4,
+                                    border: '1px solid #ddd',
+                                    fontSize: 12,
+                                    background: '#fff'
+                                }}
+                                disabled={isAnyLoading}
+                            >
+                                <option value="classic">Classic</option>
+                                <option value="quickwallet-manual">Manual</option>
+                                <option value="quickwallet-auto">Auto</option>
+                                <option value="quickwallet-external-sign">Ext-Sign</option>
+                                <option value="quickwallet-external-tx">Ext-TX</option>
+                            </select>
+                            {isConnectedOnTabNostr && (
+                                <span style={{
+                                    background: '#65F152',
+                                    color: '#000',
+                                    fontWeight: 'bold',
+                                    borderRadius: 3,
+                                    padding: '2px 6px',
+                                    fontSize: 10
+                                }}>
+                                    QW
+                                </span>
+                            )}
+                            <button
+                                type="button"
+                                style={{
+                                    ...mainStyles.button,
+                                    ...mainStyles.dangerButton,
+                                    padding: '4px 8px',
+                                    fontSize: 12
+                                }}
+                                onClick={() => handleDisconnect('nostr')}
+                                disabled={isAnyLoading}
+                            >
+                                ✖
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Sélection et connexion compacte */}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                    {(nostrWallets.length > 0 || tempNostrWallets.length > 0) ? (
+                        <>
+                            <select
+                                style={{
+                                    ...mainStyles.input,
+                                    flex: 1,
+                                    minWidth: 0,
+                                    fontSize: 14
+                                }}
+                                value={selectedNostrWallet}
+                                onChange={(e) => setSelectedNostrWallet(e.target.value)}
+                                disabled={isAnyLoading}
+                            >
+                                <option value="">Choisir un wallet Nostr...</option>
+                                {[...nostrWallets, ...tempNostrWallets].map(wallet => (
+                                    <option key={wallet.id} value={wallet.id}>
+                                        {wallet.name} ({truncateAddress(wallet.address, 4, 3)})
+                                        {walletState.nostr.isConnected && walletState.nostr.publicKey === wallet.address ? ' ✓' : ''}
+                                    </option>
+                                ))}
+                            </select>
+                            <button
+                                type="button"
+                                style={{
+                                    ...mainStyles.button,
+                                    ...mainStyles.primaryButton,
+                                    padding: '8px 12px',
+                                    fontSize: 14,
+                                    minWidth: 80,
+                                    ...((!selectedNostrWallet || nostrLoading) && mainStyles.disabledButton)
+                                }}
+                                onClick={handleNostrConnect}
+                                disabled={!selectedNostrWallet || isAnyLoading}
+                            >
+                                {nostrLoading ? '⏳' : (walletState.nostr.isConnected ? 'Switch' : 'Connect')}
+                            </button>
+                        </>
+                    ) : (
+                        <div style={{
+                            flex: 1,
+                            textAlign: 'center',
+                            padding: '12px',
+                            color: '#6c757d',
+                            fontSize: 14,
+                            fontStyle: 'italic'
+                        }}>
+                            No wallet
+                        </div>
+                    )}
+
+                    <button
+                        type="button"
+                        style={{
+                            ...mainStyles.button,
+                            ...mainStyles.secondaryButton,
+                            padding: '8px 12px',
+                            fontSize: 14,
+                            minWidth: 80
+                        }}
+                        onClick={() => setShowAddNostr(!showAddNostr)}
+                        disabled={isAnyLoading}
+                    >
+                        {showAddNostr ? 'Annuler' : '+ Ajouter'}
+                    </button>
+                </div>
+
+                {/* Formulaire d'ajout compact */}
+                {showAddNostr && (
+                    <div style={{
+                        backgroundColor: '#f8f9fa',
+                        border: '1px solid #e9ecef',
+                        borderRadius: 6,
+                        padding: 12,
+                        marginBottom: 8
+                    }}>
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                            <input
+                                style={{
+                                    ...mainStyles.input,
+                                    flex: 1,
+                                    fontSize: 14
+                                }}
+                                type="text"
+                                placeholder="Nom du wallet"
+                                value={newNostrName}
+                                onChange={(e) => setNewNostrName(e.target.value)}
+                                disabled={isAnyLoading}
+                            />
+                            <input
+                                style={{
+                                    ...mainStyles.input,
+                                    flex: 2,
+                                    fontSize: 14
+                                }}
+                                type="password"
+                                placeholder="Clé privée Nostr (hex 64 chars)"
+                                value={newNostrKey}
+                                onChange={(e) => setNewNostrKey(e.target.value)}
+                                disabled={isAnyLoading}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', fontSize: 12, color: '#6c757d' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={newNostrSave}
+                                    onChange={(e) => setNewNostrSave(e.target.checked)}
+                                    style={{ marginRight: 6 }}
+                                    disabled={isAnyLoading}
+                                />
+                                Sauvegarder
+                            </label>
+                            <button
+                                type="button"
+                                style={{
+                                    ...mainStyles.button,
+                                    ...mainStyles.primaryButton,
+                                    padding: '6px 12px',
+                                    fontSize: 14
+                                }}
+                                onClick={handleAddNostrWallet}
+                                disabled={!newNostrKey || !newNostrName || isAnyLoading}
+                            >
+                                Ajouter
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Liste des wallets compacte */}
+                {(nostrWallets.length > 0 || tempNostrWallets.length > 0) && (
+                    <div style={{ fontSize: 12 }}>
+                        <div style={{ color: '#6c757d', marginBottom: 4, fontWeight: 'bold' }}>
+                            All wallets ({nostrWallets.length + tempNostrWallets.length}):
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            {[...nostrWallets, ...tempNostrWallets].map(wallet => (
+                                <div key={wallet.id} style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    padding: '4px 8px',
+                                    border: '1px solid #ddd',
+                                    borderRadius: 4,
+                                    fontSize: 11,
+                                    backgroundColor: walletState.nostr.isConnected && walletState.nostr.publicKey === wallet.address ? '#e8f5e8' : '#fff'
+                                }}>
+                                    <span style={{ fontWeight: 'bold' }}>{wallet.name}</span>
+                                    <span style={{ color: '#6c757d' }}>({truncateAddress(wallet.address, 3, 2)})</span>
+                                    {walletState.nostr.isConnected && walletState.nostr.publicKey === wallet.address && (
+                                        <span style={{ color: '#65F152' }}>✓</span>
+                                    )}
+                                    <button
+                                        type="button"
+                                        style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            color: '#dc3545',
+                                            cursor: 'pointer',
+                                            padding: 0,
+                                            fontSize: 10
+                                        }}
+                                        onClick={() => handleRemoveWallet(wallet.id, 'nostr')}
                                         disabled={isAnyLoading}
                                         title="Supprimer"
                                     >

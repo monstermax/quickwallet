@@ -6,9 +6,11 @@ import { Keypair } from '@solana/web3.js'
 import { decode } from 'bs58'
 
 import { walletManager } from '../services/WalletManager'
-import { validateEvmPrivateKey, validateSolanaPrivateKey } from '../services/validation'
+import { validateEvmPrivateKey, validateNostrPrivateKey, validateSolanaPrivateKey } from '../services/validation'
 import { EvmWallet } from '../services/evm/EvmWallet'
 import { SolanaWallet } from '../services/solana/SolanaWallet'
+import { getPublicKey, nip19 } from 'nostr-tools'
+import { hexToBytes } from '@noble/hashes/utils'
 
 import type { WalletState } from '../types/wallet'
 
@@ -25,11 +27,17 @@ export const useWallet = () => {
             privateKey: null,
             address: null,
             isConnected: false
-        }
+        },
+        nostr: {
+            privateKey: null,
+            publicKey: null,
+            isConnected: false
+        },
     })
 
     const evmWallet = walletManager.evmWallet
     const solanaWallet = walletManager.solanaWallet
+    const nostrWallet = walletManager.nostrWallet
     //const [autoSign, setAutoSign] = useState(() => walletManager.getAutoSign())
 
 
@@ -96,6 +104,35 @@ export const useWallet = () => {
         }
     }, [])
 
+    const connectNostr = useCallback((privateKey: string) => {
+        const validKey = validateNostrPrivateKey(privateKey)
+
+        if (!validKey) {
+            throw new Error('Invalid Nostr private key format')
+        }
+
+        try {
+            // Calculer la clé publique
+            const publicKey = getPublicKey(hexToBytes(validKey))
+
+            // Configurer le service wallet
+            nostrWallet.setPrivateKey(validKey)
+
+            setWalletState(prev => ({
+                ...prev,
+                nostr: {
+                    privateKey: validKey,
+                    publicKey: publicKey,
+                    isConnected: true
+                }
+            }))
+
+        } catch (error) {
+            console.error('Failed to connect Nostr wallet:', error)
+            throw new Error('Failed to create Nostr wallet from private key')
+        }
+    }, [])
+
 
     const disconnectEVM = useCallback(() => {
         evmWallet.setPrivateKey(null)
@@ -123,6 +160,17 @@ export const useWallet = () => {
         }))
     }, [])
 
+    const disconnectNostr = useCallback(() => {
+        nostrWallet.setPrivateKey(null)
+        setWalletState(prev => ({
+            ...prev,
+            nostr: {
+                privateKey: null,
+                publicKey: null,
+                isConnected: false
+            }
+        }))
+    }, [])
 
     //useEffect(() => {
     //    walletManager.setAutoSign(autoSign)
@@ -133,10 +181,13 @@ export const useWallet = () => {
         walletState,
         connectEVM,
         connectSolana,
+        connectNostr,
         disconnectEVM,
         disconnectSolana,
+        disconnectNostr,
         evmWallet,
         solanaWallet,
+        nostrWallet,
         //autoSign,
         //setAutoSign,
     }

@@ -7,13 +7,14 @@
 interface StoredKeys {
     evm?: string
     solana?: string
+    nostr?: string
     timestamp: number
 }
 
 interface StoredWallet {
     id: string
     name: string
-    type: 'evm' | 'solana'
+    type: 'evm' | 'solana' | 'nostr'
     privateKey: string
     address: string
     timestamp: number

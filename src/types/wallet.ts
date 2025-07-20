@@ -13,6 +13,7 @@ export type QuickwalletMode = 'classic'
 export interface WalletState {
     evm: EVMWalletState
     solana: SolanaWalletState
+    nostr: NostrWalletState 
 }
 
 export interface EVMWalletState {
@@ -32,8 +33,8 @@ export interface WalletDialogProps {
     isOpen: boolean
     walletState: WalletState
     onClose: () => void
-    onConnect: (chain: 'evm' | 'solana', privateKey: string) => void
-    onDisconnect: (chain: 'evm' | 'solana') => void,
+    onConnect: (chain: 'evm' | 'solana' | 'nostr', privateKey: string) => void
+    onDisconnect: (chain: 'evm' | 'solana' | 'nostr') => void,
     setNotification: React.Dispatch<React.SetStateAction<NotificationType>>,
 }
 
@@ -42,4 +43,10 @@ export interface NotificationProps {
     type?: 'info' | 'success' | 'warning' | 'error'
     show: boolean
     onClose: () => void
+}
+
+export interface NostrWalletState {
+    privateKey: string | null
+    publicKey: string | null
+    isConnected: boolean
 }

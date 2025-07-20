@@ -52,3 +52,29 @@ export function validateSolanaPrivateKey(key: string | null): string | null {
         return null;
     }
 }
+
+export function validateNostrPrivateKey(key: string | null): string | null {
+    if (!key) return null;
+
+    // Nettoyer les espaces
+    key = key.replace(/\s/g, '').toLowerCase();
+
+    // Validation longueur et format hexadécimal (64 caractères)
+    if (!/^[a-f0-9]{64}$/i.test(key)) {
+        console.warn('Invalid Nostr private key format', key);
+        return null;
+    }
+
+    // Vérifier que ce n'est pas une clé "example" courante
+    const dangerousKeys = [
+        '1111111111111111111111111111111111111111111111111111111111111111',
+        '0000000000000000000000000000000000000000000000000000000000000001',
+    ];
+
+    if (dangerousKeys.includes(key)) {
+        console.warn('Dangerous/example Nostr private key detected');
+        return null;
+    }
+
+    return key;
+}

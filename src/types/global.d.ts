@@ -2,6 +2,7 @@
 
 import { QuickwalletMode } from "./wallet"
 
+
 declare global {
     interface Window {
         ethereum?: {
@@ -62,13 +63,33 @@ declare global {
                 getAddress: () => string | null
                 setPrivateKey: (key: string | null) => void
             }
+            nostr: {
+                getPublicKey: () => string | null
+                setPrivateKey: (key: string | null) => void
+            }
+        }
+        nostr?: {
+            getPublicKey: () => Promise<string>  // Asynchrone pour window.nostr
+            signEvent: (event: any) => Promise<any>
+            getRelays: () => Promise<Record<string, any>>
+            nip04: {
+                encrypt: (peer: string, plaintext: string) => Promise<string>
+                decrypt: (peer: string, ciphertext: string) => Promise<string>
+            }
+            nip44: {
+                encrypt: (peer: string, plaintext: string) => Promise<string>
+                decrypt: (peer: string, ciphertext: string) => Promise<string>
+            }
+            _call?: (type: string, params: any) => Promise<any>
+            _requests?: any
+            _pubkey?: string | null
         }
     }
 
     // Étendre l'interface WindowEventMap pour inclure nos événements personnalisés
     interface WindowEventMap {
         'QuickWalletModeChange': CustomEvent<{
-            chain: 'evm' | 'solana'
+            chain: 'evm' | 'solana' | 'nostr'
             mode: QuickwalletMode
             active: boolean
         }>

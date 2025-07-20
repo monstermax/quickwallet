@@ -11,17 +11,21 @@ export class SolanaWallet {
     private isQuickWalletActive: boolean = false;
     private quickWalletMode: QuickwalletMode = 'classic';
     private originalProviders: Map<any, any> = new Map();
+    private debug: boolean = false;
 
     constructor() {
         // Écouter les changements de mode
         window.addEventListener('QuickWalletModeChange', this.handleModeChange.bind(this))
     }
 
-    private handleModeChange = (event: CustomEvent<{ chain: 'evm' | 'solana', mode: QuickwalletMode, active: boolean }>) => {
+    private handleModeChange = (event: CustomEvent<{ chain: 'evm' | 'solana' | 'nostr', mode: QuickwalletMode, active: boolean }>) => {
         if (event.detail.chain === 'solana') {
             this.isQuickWalletActive = event.detail.active;
             this.quickWalletMode = event.detail.mode;
-            console.log('Solana QuickWallet mode:', this.isQuickWalletActive ? 'ACTIVE' : 'INACTIVE')
+
+            if (this.debug) {
+                console.log('Solana QuickWallet mode:', this.isQuickWalletActive ? 'ACTIVE' : 'INACTIVE')
+            }
         }
     }
 
@@ -58,6 +62,14 @@ export class SolanaWallet {
         }
     }
 
+    getDebug(): boolean {
+        return this.debug
+    }
+
+    setDebug(debug: boolean): void {
+        this.debug = debug
+    }
+
     private interceptSolanaProvider(provider: any): void {
         // Sauvegarder les méthodes originales si pas déjà fait
         if (!this.originalProviders.has(provider)) {
@@ -74,10 +86,15 @@ export class SolanaWallet {
 
         // Intercepter connect
         provider.connect = async (options?: any) => {
-            console.log('solana.connect intercepted:', options, 'QuickWallet active:', this.isQuickWalletActive)
+            if (this.debug) {
+                console.log('solana.connect intercepted:', options, 'QuickWallet active:', this.isQuickWalletActive)
+            }
 
             if (this.isQuickWalletActive && this.keypair) {
-                console.log('QuickWallet handling solana.connect')
+                if (this.debug) {
+                    console.log('QuickWallet handling solana.connect')
+                }
+
                 return {
                     publicKey: this.keypair.publicKey
                 }
@@ -88,10 +105,15 @@ export class SolanaWallet {
 
         // Intercepter signTransaction
         provider.signTransaction = async (transaction: Transaction) => {
-            console.log('solana.signTransaction intercepted:', transaction, 'QuickWallet active:', this.isQuickWalletActive)
+            if (this.debug) {
+                console.log('solana.signTransaction intercepted:', transaction, 'QuickWallet active:', this.isQuickWalletActive)
+            }
 
             if (this.isQuickWalletActive && this.keypair) {
-                console.log('QuickWallet handling solana.signTransaction')
+                if (this.debug) {
+                    console.log('QuickWallet handling solana.signTransaction')
+                }
+
                 return this.signTransaction(transaction)
             }
 
@@ -100,10 +122,15 @@ export class SolanaWallet {
 
         // Intercepter signAllTransactions
         provider.signAllTransactions = async (transactions: Transaction[]) => {
-            console.log('solana.signAllTransactions intercepted:', transactions, 'QuickWallet active:', this.isQuickWalletActive)
+            if (this.debug) {
+                console.log('solana.signAllTransactions intercepted:', transactions, 'QuickWallet active:', this.isQuickWalletActive)
+            }
 
             if (this.isQuickWalletActive && this.keypair) {
-                console.log('QuickWallet handling solana.signAllTransactions')
+                if (this.debug) {
+                    console.log('QuickWallet handling solana.signAllTransactions')
+                }
+
                 const signedTransactions: Transaction[] = []
                 for (const tx of transactions) {
                     signedTransactions.push(await this.signTransaction(tx))
@@ -116,10 +143,15 @@ export class SolanaWallet {
 
         // Intercepter signMessage
         provider.signMessage = async (message: Uint8Array, encoding?: string) => {
-            console.log('solana.signMessage intercepted:', message, encoding, 'QuickWallet active:', this.isQuickWalletActive)
+            if (this.debug) {
+                console.log('solana.signMessage intercepted:', message, encoding, 'QuickWallet active:', this.isQuickWalletActive)
+            }
 
             if (this.isQuickWalletActive && this.keypair) {
-                console.log('QuickWallet handling solana.signMessage')
+                if (this.debug) {
+                    console.log('QuickWallet handling solana.signMessage')
+                }
+
                 return this.signMessage(message, encoding)
             }
 
@@ -129,10 +161,15 @@ export class SolanaWallet {
         // Intercepter request
         if (original.request) {
             provider.request = async (request: any) => {
-                console.log('solana.request intercepted:', request, 'QuickWallet active:', this.isQuickWalletActive)
+                if (this.debug) {
+                    console.log('solana.request intercepted:', request, 'QuickWallet active:', this.isQuickWalletActive)
+                }
 
                 if (request.method === 'connect' && this.isQuickWalletActive && this.keypair) {
-                    console.log('QuickWallet handling solana.request connect')
+                    if (this.debug) {
+                        console.log('QuickWallet handling solana.request connect')
+                    }
+
                     return {
                         publicKey: this.keypair.publicKey
                     }
