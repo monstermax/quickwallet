@@ -27047,357 +27047,6 @@ var src = base;
 const basex = src;
 const ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 var bs58 = basex(ALPHABET);
-function validateEvmPrivateKey(key) {
-  if (!key) return null;
-  key = key.replace(/\s/g, "").toLowerCase();
-  if (!key.startsWith("0x")) {
-    key = "0x" + key;
-  }
-  if (!/^0x[a-f0-9]{64}$/i.test(key)) {
-    console.warn("Invalid EVM private key format");
-    return null;
-  }
-  const dangerousKeys = [
-    "0x1111111111111111111111111111111111111111111111111111111111111111",
-    "0x0000000000000000000000000000000000000000000000000000000000000001"
-  ];
-  if (dangerousKeys.includes(key)) {
-    console.warn("Dangerous/example private key detected");
-    return null;
-  }
-  return key;
-}
-function validateSolanaPrivateKey(key) {
-  if (!key) return null;
-  key = key.replace(/\s/g, "");
-  if (!/^[1-9A-HJ-NP-Za-km-z]{87,88}$/.test(key)) {
-    console.warn("Invalid Solana private key format");
-    return null;
-  }
-  try {
-    return key;
-  } catch (e) {
-    console.warn("Invalid Solana private key:", e);
-    return null;
-  }
-}
-function validateNostrPrivateKey(key) {
-  if (!key) return null;
-  key = key.replace(/\s/g, "").toLowerCase();
-  if (!/^[a-f0-9]{64}$/i.test(key)) {
-    console.warn("Invalid Nostr private key format");
-    return null;
-  }
-  const dangerousKeys = [
-    "1111111111111111111111111111111111111111111111111111111111111111",
-    "0000000000000000000000000000000000000000000000000000000000000001"
-  ];
-  if (dangerousKeys.includes(key)) {
-    console.warn("Dangerous/example Nostr private key detected");
-    return null;
-  }
-  return key;
-}
-function getTabStyles(dependencies) {
-  const { autoSign, autoConnectEnabled } = dependencies;
-  return {
-    tabContainer: {
-      display: "flex",
-      borderBottom: "1px solid #e5e7eb",
-      backgroundColor: "#f8f9fa"
-    },
-    tab: {
-      flex: 1,
-      padding: "12px 16px",
-      border: "none",
-      backgroundColor: "transparent",
-      cursor: "pointer",
-      fontSize: "14px",
-      fontWeight: "500",
-      transition: "all 0.2s"
-    },
-    activeTab: {
-      backgroundColor: "#ffffff",
-      borderBottom: "2px solid #65F152",
-      color: "#65F152"
-    },
-    inactiveTab: {
-      color: "#6c757d"
-    },
-    settingsContainer: {
-      padding: "24px"
-    },
-    settingRow: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      padding: "16px 0",
-      borderBottom: "1px solid #e5e7eb"
-    },
-    settingLabel: {
-      fontSize: "14px",
-      fontWeight: "500",
-      color: "#374151"
-    },
-    settingDescription: {
-      fontSize: "12px",
-      color: "#6c757d",
-      marginTop: "4px"
-    },
-    toggle: {
-      width: "48px",
-      height: "24px",
-      backgroundColor: autoSign ? "#65F152" : "#d1d5db",
-      borderRadius: "12px",
-      position: "relative",
-      cursor: "pointer",
-      transition: "all 0.2s"
-    },
-    toggleKnob: {
-      width: "20px",
-      height: "20px",
-      backgroundColor: "#ffffff",
-      borderRadius: "50%",
-      position: "absolute",
-      top: "2px",
-      left: autoSign ? "26px" : "2px",
-      transition: "all 0.2s",
-      boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
-    },
-    settingsButton: {
-      padding: "8px 16px",
-      border: "none",
-      borderRadius: "4px",
-      fontSize: "14px",
-      fontWeight: "600",
-      cursor: "pointer",
-      transition: "all 0.2s",
-      marginRight: "8px",
-      marginBottom: "8px"
-    },
-    saveButton: {
-      backgroundColor: "#65F152",
-      color: "#000"
-    },
-    deleteButton: {
-      backgroundColor: "#fee2e2",
-      color: "#b91c1c"
-    },
-    textarea: {
-      width: "100%",
-      minHeight: "100px",
-      padding: "12px",
-      border: "2px solid #65F152",
-      borderRadius: "6px",
-      fontSize: "14px",
-      fontFamily: "inherit",
-      resize: "vertical",
-      outline: "none",
-      backgroundColor: "#ffffff",
-      color: "#000000",
-      boxShadow: "0 2px 4px rgba(101, 241, 82, 0.2)",
-      zIndex: 999999
-    },
-    checkbox: {
-      width: "18px",
-      height: "18px",
-      marginRight: "8px",
-      cursor: "pointer"
-    },
-    settingsSection: {
-      marginBottom: "24px",
-      paddingBottom: "16px",
-      borderBottom: "1px solid #e5e7eb"
-    },
-    buttonGroup: {
-      display: "flex",
-      flexWrap: "wrap",
-      gap: "8px",
-      marginTop: "12px"
-    },
-    autoConnectToggle: {
-      width: "48px",
-      height: "24px",
-      backgroundColor: autoConnectEnabled ? "#65F152" : "#d1d5db",
-      borderRadius: "12px",
-      position: "relative",
-      cursor: "pointer",
-      transition: "all 0.2s"
-    },
-    autoConnectKnob: {
-      width: "20px",
-      height: "20px",
-      backgroundColor: "#ffffff",
-      borderRadius: "50%",
-      position: "absolute",
-      top: "2px",
-      left: autoConnectEnabled ? "26px" : "2px",
-      transition: "all 0.2s",
-      boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
-    },
-    addDomainButton: {
-      padding: "4px 8px",
-      border: "none",
-      borderRadius: "4px",
-      fontSize: "12px",
-      fontWeight: "600",
-      cursor: "pointer",
-      backgroundColor: "#65F152",
-      color: "#000",
-      marginLeft: "8px",
-      transition: "all 0.2s"
-    },
-    domainRow: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: "8px"
-    }
-  };
-}
-const mainStyles = {
-  overlay: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 999999,
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-  },
-  modal: {
-    backgroundColor: "#ffffff",
-    borderRadius: "8px",
-    boxShadow: "0 10px 30px rgba(0, 0, 0, 0.3)",
-    width: "500px",
-    maxWidth: "90vw",
-    maxHeight: "90vh",
-    overflow: "hidden",
-    border: "2px solid #65F152",
-    color: "black"
-  },
-  header: {
-    padding: "20px 24px",
-    borderBottom: "2px solid #65F152",
-    background: "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center"
-  },
-  title: {
-    margin: 0,
-    fontSize: "20px",
-    fontWeight: "bold",
-    color: "#65F152",
-    textShadow: "1px 1px 2px black"
-  },
-  subtitle: {
-    color: "#6c757d",
-    fontSize: "14px",
-    marginLeft: "8px"
-  },
-  closeButton: {
-    background: "none",
-    border: "none",
-    fontSize: "24px",
-    cursor: "pointer",
-    color: "#6c757d",
-    padding: "4px"
-  },
-  body: {
-    padding: "24px"
-  },
-  section: {
-    marginBottom: "24px"
-  },
-  badge: {
-    backgroundColor: "#65F152",
-    color: "#000",
-    padding: "4px 8px",
-    borderRadius: "4px",
-    fontSize: "12px",
-    fontWeight: "bold",
-    marginRight: "8px"
-  },
-  input: {
-    flex: 1,
-    padding: "12px",
-    border: "none",
-    outline: "none",
-    fontSize: "14px",
-    fontFamily: "inherit",
-    color: "#374151",
-    backgroundColor: "#ffffff"
-  },
-  button: {
-    padding: "8px 16px",
-    border: "none",
-    borderRadius: "4px",
-    fontSize: "14px",
-    fontWeight: "600",
-    cursor: "pointer",
-    transition: "all 0.2s",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  primaryButton: {
-    backgroundColor: "#65F152",
-    color: "#000"
-  },
-  secondaryButton: {
-    backgroundColor: "#f3f4f6",
-    color: "#374151"
-  },
-  dangerButton: {
-    backgroundColor: "#fee2e2",
-    color: "#b91c1c"
-  },
-  disabledButton: {
-    opacity: 0.6,
-    cursor: "not-allowed"
-  },
-  footer: {
-    padding: "16px 24px",
-    backgroundColor: "#f8f9fa",
-    borderTop: "1px solid #e5e7eb",
-    display: "flex",
-    justifyContent: "flex-end"
-  },
-  warning: {
-    backgroundColor: "#fffbeb",
-    border: "1px solid #fbbf24",
-    borderLeft: "4px solid #f59e0b",
-    borderRadius: "4px",
-    padding: "12px",
-    fontSize: "12px",
-    color: "#92400e"
-  },
-  error: {
-    backgroundColor: "#fef2f2",
-    border: "1px solid #f87171",
-    borderRadius: "4px",
-    padding: "12px",
-    fontSize: "14px",
-    color: "#b91c1c",
-    marginBottom: "16px"
-  }
-};
-if (!document.getElementById("quickwallet-spinner-css")) {
-  const styleElement = document.createElement("style");
-  styleElement.id = "quickwallet-spinner-css";
-  styleElement.textContent = `
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    `;
-  document.head.appendChild(styleElement);
-}
 function number$2(n2) {
   if (!Number.isSafeInteger(n2) || n2 < 0)
     throw new Error(`Wrong positive integer: ${n2}`);
@@ -32482,6 +32131,352 @@ async function validateEvent2(event, url, method, body) {
   }
   return true;
 }
+function validateEvmPrivateKey(key) {
+  if (!key) return null;
+  key = key.replace(/\s/g, "").toLowerCase();
+  if (!key.startsWith("0x")) {
+    key = "0x" + key;
+  }
+  if (!/^0x[a-f0-9]{64}$/i.test(key)) {
+    console.warn("Invalid EVM private key format");
+    return null;
+  }
+  const dangerousKeys = [
+    "0x1111111111111111111111111111111111111111111111111111111111111111",
+    "0x0000000000000000000000000000000000000000000000000000000000000001"
+  ];
+  if (dangerousKeys.includes(key)) {
+    console.warn("Dangerous/example private key detected");
+    return null;
+  }
+  return key;
+}
+function validateSolanaPrivateKey(key) {
+  if (!key) return null;
+  key = key.replace(/\s/g, "");
+  if (!/^[1-9A-HJ-NP-Za-km-z]{87,88}$/.test(key)) {
+    console.warn("Invalid Solana private key format");
+    return null;
+  }
+  try {
+    return key;
+  } catch (e) {
+    console.warn("Invalid Solana private key:", e);
+    return null;
+  }
+}
+function validateNostrPrivateKey(key) {
+  if (!key) return null;
+  key = key.replace(/\s/g, "").toLowerCase();
+  if (!/^[a-f0-9]{64}$/i.test(key)) {
+    console.warn("Invalid Nostr private key format", key);
+    return null;
+  }
+  const dangerousKeys = [
+    "1111111111111111111111111111111111111111111111111111111111111111",
+    "0000000000000000000000000000000000000000000000000000000000000001"
+  ];
+  if (dangerousKeys.includes(key)) {
+    console.warn("Dangerous/example Nostr private key detected");
+    return null;
+  }
+  return key;
+}
+function getTabStyles(dependencies) {
+  const { autoSign, autoConnectEnabled } = dependencies;
+  return {
+    tabContainer: {
+      display: "flex",
+      borderBottom: "1px solid #e5e7eb",
+      backgroundColor: "#f8f9fa"
+    },
+    tab: {
+      flex: 1,
+      padding: "12px 16px",
+      border: "none",
+      backgroundColor: "transparent",
+      cursor: "pointer",
+      fontSize: "14px",
+      fontWeight: "500",
+      transition: "all 0.2s"
+    },
+    activeTab: {
+      backgroundColor: "#ffffff",
+      borderBottom: "2px solid #65F152",
+      color: "#65F152"
+    },
+    inactiveTab: {
+      color: "#6c757d"
+    },
+    settingsContainer: {
+      padding: "24px"
+    },
+    settingRow: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: "16px 0",
+      borderBottom: "1px solid #e5e7eb"
+    },
+    settingLabel: {
+      fontSize: "14px",
+      fontWeight: "500",
+      color: "#374151"
+    },
+    settingDescription: {
+      fontSize: "12px",
+      color: "#6c757d",
+      marginTop: "4px"
+    },
+    toggle: {
+      width: "48px",
+      height: "24px",
+      backgroundColor: autoSign ? "#65F152" : "#d1d5db",
+      borderRadius: "12px",
+      position: "relative",
+      cursor: "pointer",
+      transition: "all 0.2s"
+    },
+    toggleKnob: {
+      width: "20px",
+      height: "20px",
+      backgroundColor: "#ffffff",
+      borderRadius: "50%",
+      position: "absolute",
+      top: "2px",
+      left: autoSign ? "26px" : "2px",
+      transition: "all 0.2s",
+      boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+    },
+    settingsButton: {
+      padding: "8px 16px",
+      border: "none",
+      borderRadius: "4px",
+      fontSize: "14px",
+      fontWeight: "600",
+      cursor: "pointer",
+      transition: "all 0.2s",
+      marginRight: "8px",
+      marginBottom: "8px"
+    },
+    saveButton: {
+      backgroundColor: "#65F152",
+      color: "#000"
+    },
+    deleteButton: {
+      backgroundColor: "#fee2e2",
+      color: "#b91c1c"
+    },
+    textarea: {
+      width: "100%",
+      minHeight: "100px",
+      padding: "12px",
+      border: "2px solid #65F152",
+      borderRadius: "6px",
+      fontSize: "14px",
+      fontFamily: "inherit",
+      resize: "vertical",
+      outline: "none",
+      backgroundColor: "#ffffff",
+      color: "#000000",
+      boxShadow: "0 2px 4px rgba(101, 241, 82, 0.2)",
+      zIndex: 999999
+    },
+    checkbox: {
+      width: "18px",
+      height: "18px",
+      marginRight: "8px",
+      cursor: "pointer"
+    },
+    settingsSection: {
+      marginBottom: "24px",
+      paddingBottom: "16px",
+      borderBottom: "1px solid #e5e7eb"
+    },
+    buttonGroup: {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: "8px",
+      marginTop: "12px"
+    },
+    autoConnectToggle: {
+      width: "48px",
+      height: "24px",
+      backgroundColor: autoConnectEnabled ? "#65F152" : "#d1d5db",
+      borderRadius: "12px",
+      position: "relative",
+      cursor: "pointer",
+      transition: "all 0.2s"
+    },
+    autoConnectKnob: {
+      width: "20px",
+      height: "20px",
+      backgroundColor: "#ffffff",
+      borderRadius: "50%",
+      position: "absolute",
+      top: "2px",
+      left: autoConnectEnabled ? "26px" : "2px",
+      transition: "all 0.2s",
+      boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+    },
+    addDomainButton: {
+      padding: "4px 8px",
+      border: "none",
+      borderRadius: "4px",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: "pointer",
+      backgroundColor: "#65F152",
+      color: "#000",
+      marginLeft: "8px",
+      transition: "all 0.2s"
+    },
+    domainRow: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: "8px"
+    }
+  };
+}
+const mainStyles = {
+  overlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 999999,
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+  },
+  modal: {
+    backgroundColor: "#ffffff",
+    borderRadius: "8px",
+    boxShadow: "0 10px 30px rgba(0, 0, 0, 0.3)",
+    width: "500px",
+    maxWidth: "90vw",
+    maxHeight: "90vh",
+    overflow: "hidden",
+    border: "2px solid #65F152",
+    color: "black"
+  },
+  header: {
+    padding: "20px 24px",
+    borderBottom: "2px solid #65F152",
+    background: "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+  title: {
+    margin: 0,
+    fontSize: "20px",
+    fontWeight: "bold",
+    color: "#65F152",
+    textShadow: "1px 1px 2px black"
+  },
+  closeButton: {
+    background: "none",
+    border: "none",
+    fontSize: "24px",
+    cursor: "pointer",
+    color: "#6c757d",
+    padding: "4px"
+  },
+  body: {
+    padding: "10px"
+  },
+  section: {
+    marginBottom: "24px"
+  },
+  badge: {
+    backgroundColor: "#65F152",
+    color: "#000",
+    padding: "4px 8px",
+    borderRadius: "4px",
+    fontSize: "12px",
+    fontWeight: "bold",
+    marginRight: "8px"
+  },
+  input: {
+    flex: 1,
+    padding: "12px",
+    border: "none",
+    outline: "none",
+    fontSize: "14px",
+    fontFamily: "inherit",
+    color: "#374151",
+    backgroundColor: "#ffffff"
+  },
+  button: {
+    padding: "8px 16px",
+    border: "none",
+    borderRadius: "4px",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: "pointer",
+    transition: "all 0.2s",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  primaryButton: {
+    backgroundColor: "#65F152",
+    color: "#000"
+  },
+  secondaryButton: {
+    backgroundColor: "#f3f4f6",
+    color: "#374151"
+  },
+  dangerButton: {
+    backgroundColor: "#fee2e2",
+    color: "#b91c1c"
+  },
+  disabledButton: {
+    opacity: 0.6,
+    cursor: "not-allowed"
+  },
+  footer: {
+    padding: "16px 24px",
+    backgroundColor: "#f8f9fa",
+    borderTop: "1px solid #e5e7eb",
+    display: "flex",
+    justifyContent: "flex-end"
+  },
+  warning: {
+    backgroundColor: "#fffbeb",
+    border: "1px solid #fbbf24",
+    borderLeft: "4px solid #f59e0b",
+    borderRadius: "4px",
+    padding: "12px",
+    fontSize: "12px",
+    color: "#92400e"
+  },
+  error: {
+    backgroundColor: "#fef2f2",
+    border: "1px solid #f87171",
+    borderRadius: "4px",
+    padding: "12px",
+    fontSize: "14px",
+    color: "#b91c1c",
+    marginBottom: "16px"
+  }
+};
+if (!document.getElementById("quickwallet-spinner-css")) {
+  const styleElement = document.createElement("style");
+  styleElement.id = "quickwallet-spinner-css";
+  styleElement.textContent = `
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    `;
+  document.head.appendChild(styleElement);
+}
 const WalletsTab = ({
   walletState,
   error,
@@ -32723,6 +32718,25 @@ const WalletsTab = ({
       });
     }
   };
+  const handleNostrModeChange = (mode) => {
+    setNostrMode(mode);
+    localStorage.setItem("quickwallet-nostr-mode", mode);
+    if (walletState.nostr.isConnected) {
+      updateQuickWalletMode("nostr", mode, true);
+      const modeMessages = {
+        "classic": "Mode Classic activé pour Nostr - utilisez nos2x pour signer",
+        "quickwallet-manual": "Mode QuickWallet activé pour Nostr - signature manuelle",
+        "quickwallet-auto": "Mode QuickWallet activé pour Nostr - signature automatique",
+        "quickwallet-external-sign": "Mode External-Sign sélectionné pour Nostr - non implémenté",
+        "quickwallet-external-tx": "Mode External-TX sélectionné pour Nostr - non implémenté"
+      };
+      setNotification({
+        show: true,
+        message: modeMessages[mode],
+        type: mode === "quickwallet-external-sign" ? "warning" : "info"
+      });
+    }
+  };
   const handleEvmConnect = async () => {
     const wallet = evmWallets.find((w2) => w2.id === selectedEvmWallet);
     if (!wallet) return;
@@ -32739,6 +32753,15 @@ const WalletsTab = ({
     await onSolanaConnect();
     if (solanaMode !== "classic") {
       updateQuickWalletMode("solana", solanaMode, true);
+    }
+  };
+  const handleNostrConnect = async () => {
+    const wallet = nostrWallets.find((w2) => w2.id === selectedNostrWallet);
+    if (!wallet) return;
+    setNostrKey(wallet.privateKey);
+    await onNostrConnect();
+    if (nostrMode !== "classic") {
+      updateQuickWalletMode("nostr", nostrMode, true);
     }
   };
   const handleDisconnect = (chain2) => {
@@ -32890,6 +32913,77 @@ const WalletsTab = ({
       });
     }
   };
+  const handleAddNostrWallet = async () => {
+    if (!newNostrKey || !newNostrName) return;
+    console.log("Adding Nostr wallet:", newNostrName, "Save:", newNostrSave);
+    try {
+      const validKey = validateNostrPrivateKey(newNostrKey);
+      if (!validKey) {
+        setNotification({
+          show: true,
+          message: "Clé privée Nostr invalide",
+          type: "error"
+        });
+        return;
+      }
+      const publicKey2 = getPublicKey(hexToBytes$3(validKey));
+      const allNostrWallets = [...nostrWallets, ...tempNostrWallets];
+      const existingWallet = allNostrWallets.find((w2) => w2.address === publicKey2);
+      if (existingWallet) {
+        setNotification({
+          show: true,
+          message: "Ce wallet existe déjà",
+          type: "warning"
+        });
+        return;
+      }
+      setNostrKey(validKey);
+      await onNostrConnect();
+      console.log("Connected Nostr wallet");
+      const newWallet = {
+        id: "nostr-" + Date.now(),
+        name: newNostrName,
+        type: "nostr",
+        privateKey: validKey,
+        address: publicKey2,
+        timestamp: Date.now()
+      };
+      if (newNostrSave) {
+        try {
+          await secureStorage.addWallet(newWallet);
+          console.log("Saved wallet securely");
+          await loadWallets();
+        } catch (error2) {
+          console.error("Error saving wallet securely:", error2);
+          setNotification({
+            show: true,
+            message: "Erreur lors de la sauvegarde sécurisée. Wallet connecté temporairement.",
+            type: "warning"
+          });
+          setTempNostrWallets((prev) => [...prev, newWallet]);
+        }
+      } else {
+        setTempNostrWallets((prev) => [...prev, newWallet]);
+        console.log("Added wallet to temporary memory");
+      }
+      setNewNostrKey("");
+      setNewNostrName("");
+      setNewNostrSave(false);
+      setShowAddNostr(false);
+      setNotification({
+        show: true,
+        message: newNostrSave ? "Wallet Nostr sauvegardé et connecté avec succès" : "Wallet Nostr connecté temporairement",
+        type: "success"
+      });
+    } catch (error2) {
+      console.error("Error in handleAddNostrWallet:", error2);
+      setNotification({
+        show: true,
+        message: "Erreur lors de l'ajout du wallet Nostr: " + (error2 instanceof Error ? error2.message : "Erreur inconnue"),
+        type: "error"
+      });
+    }
+  };
   const handleRemoveWallet = async (walletId, type2) => {
     try {
       const allWallets = type2 === "evm" ? [...evmWallets, ...tempEvmWallets] : type2 === "solana" ? [...solanaWallets, ...tempSolanaWallets] : [...nostrWallets, ...tempNostrWallets];
@@ -32969,8 +33063,8 @@ const WalletsTab = ({
       ...mainStyles.section,
       border: "1px solid #e0e0e0",
       borderRadius: 8,
-      padding: "16px",
-      marginBottom: 16
+      padding: "8px",
+      marginBottom: 8
     }, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: {
         display: "flex",
@@ -32982,7 +33076,7 @@ const WalletsTab = ({
       }, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontSize: 18 }, children: "🦊" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontWeight: "bold", fontSize: 16 }, children: "EVM Networks" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontWeight: "bold", fontSize: 12 }, children: "EVM Networks" }),
           walletState.evm.isConnected && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: {
               ...mainStyles.badge,
@@ -33105,7 +33199,7 @@ const WalletsTab = ({
           color: "#6c757d",
           fontSize: 14,
           fontStyle: "italic"
-        }, children: "Aucun wallet EVM configuré" }),
+        }, children: "No wallet" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           "button",
           {
@@ -33195,7 +33289,7 @@ const WalletsTab = ({
       ] }),
       (evmWallets.length > 0 || tempEvmWallets.length > 0) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12 }, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { color: "#6c757d", marginBottom: 4, fontWeight: "bold" }, children: [
-          "Wallets configurés (",
+          "All wallets (",
           evmWallets.length + tempEvmWallets.length,
           "):"
         ] }),
@@ -33241,8 +33335,8 @@ const WalletsTab = ({
       ...mainStyles.section,
       border: "1px solid #e0e0e0",
       borderRadius: 8,
-      padding: "16px",
-      marginBottom: 16
+      padding: "8px",
+      marginBottom: 8
     }, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: {
         display: "flex",
@@ -33254,7 +33348,7 @@ const WalletsTab = ({
       }, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontSize: 18 }, children: "👾" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontWeight: "bold", fontSize: 16 }, children: "Solana Network" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontWeight: "bold", fontSize: 12 }, children: "Solana Network" }),
           walletState.solana.isConnected && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: {
             ...mainStyles.badge,
             backgroundColor: "#e8f5e8",
@@ -33365,7 +33459,7 @@ const WalletsTab = ({
           color: "#6c757d",
           fontSize: 14,
           fontStyle: "italic"
-        }, children: "Aucun wallet Solana configuré" }),
+        }, children: "No wallet" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           "button",
           {
@@ -33455,7 +33549,7 @@ const WalletsTab = ({
       ] }),
       (solanaWallets.length > 0 || tempSolanaWallets.length > 0) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12 }, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { color: "#6c757d", marginBottom: 4, fontWeight: "bold" }, children: [
-          "Wallets configurés (",
+          "All wallets (",
           solanaWallets.length + tempSolanaWallets.length,
           "):"
         ] }),
@@ -33489,6 +33583,266 @@ const WalletsTab = ({
                 fontSize: 10
               },
               onClick: () => handleRemoveWallet(wallet.id, "solana"),
+              disabled: isAnyLoading,
+              title: "Supprimer",
+              children: "✖"
+            }
+          )
+        ] }, wallet.id)) })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: {
+      ...mainStyles.section,
+      border: "1px solid #e0e0e0",
+      borderRadius: 8,
+      padding: "8px",
+      marginBottom: 8
+    }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 12,
+        paddingBottom: 8,
+        borderBottom: "1px solid #f0f0f0"
+      }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontSize: 18 }, children: "🟣" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontWeight: "bold", fontSize: 12 }, children: "Nostr Network" }),
+          walletState.nostr.isConnected && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: {
+            ...mainStyles.badge,
+            backgroundColor: "#e8f5e8",
+            color: "#2d5a2d",
+            border: "1px solid #65F152",
+            fontSize: 11,
+            padding: "2px 6px"
+          }, children: [
+            "🟢 ",
+            truncateAddress(walletState.nostr.publicKey || "", 4, 3)
+          ] }) })
+        ] }),
+        walletState.nostr.isConnected && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "select",
+            {
+              value: nostrMode,
+              onChange: (e) => handleNostrModeChange(e.target.value),
+              style: {
+                padding: "4px 8px",
+                borderRadius: 4,
+                border: "1px solid #ddd",
+                fontSize: 12,
+                background: "#fff"
+              },
+              disabled: isAnyLoading,
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "classic", children: "Classic" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-manual", children: "Manual" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-auto", children: "Auto" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-external-sign", children: "Ext-Sign" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "quickwallet-external-tx", children: "Ext-TX" })
+              ]
+            }
+          ),
+          isConnectedOnTabNostr && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: {
+            background: "#65F152",
+            color: "#000",
+            fontWeight: "bold",
+            borderRadius: 3,
+            padding: "2px 6px",
+            fontSize: 10
+          }, children: "QW" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              type: "button",
+              style: {
+                ...mainStyles.button,
+                ...mainStyles.dangerButton,
+                padding: "4px 8px",
+                fontSize: 12
+              },
+              onClick: () => handleDisconnect("nostr"),
+              disabled: isAnyLoading,
+              children: "✖"
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }, children: [
+        nostrWallets.length > 0 || tempNostrWallets.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "select",
+            {
+              style: {
+                ...mainStyles.input,
+                flex: 1,
+                minWidth: 0,
+                fontSize: 14
+              },
+              value: selectedNostrWallet,
+              onChange: (e) => setSelectedNostrWallet(e.target.value),
+              disabled: isAnyLoading,
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Choisir un wallet Nostr..." }),
+                [...nostrWallets, ...tempNostrWallets].map((wallet) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: wallet.id, children: [
+                  wallet.name,
+                  " (",
+                  truncateAddress(wallet.address, 4, 3),
+                  ")",
+                  walletState.nostr.isConnected && walletState.nostr.publicKey === wallet.address ? " ✓" : ""
+                ] }, wallet.id))
+              ]
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              type: "button",
+              style: {
+                ...mainStyles.button,
+                ...mainStyles.primaryButton,
+                padding: "8px 12px",
+                fontSize: 14,
+                minWidth: 80,
+                ...(!selectedNostrWallet || nostrLoading) && mainStyles.disabledButton
+              },
+              onClick: handleNostrConnect,
+              disabled: !selectedNostrWallet || isAnyLoading,
+              children: nostrLoading ? "⏳" : walletState.nostr.isConnected ? "Switch" : "Connect"
+            }
+          )
+        ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: {
+          flex: 1,
+          textAlign: "center",
+          padding: "12px",
+          color: "#6c757d",
+          fontSize: 14,
+          fontStyle: "italic"
+        }, children: "No wallet" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            type: "button",
+            style: {
+              ...mainStyles.button,
+              ...mainStyles.secondaryButton,
+              padding: "8px 12px",
+              fontSize: 14,
+              minWidth: 80
+            },
+            onClick: () => setShowAddNostr(!showAddNostr),
+            disabled: isAnyLoading,
+            children: showAddNostr ? "Annuler" : "+ Ajouter"
+          }
+        )
+      ] }),
+      showAddNostr && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: {
+        backgroundColor: "#f8f9fa",
+        border: "1px solid #e9ecef",
+        borderRadius: 6,
+        padding: 12,
+        marginBottom: 8
+      }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", gap: 8, marginBottom: 8 }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              style: {
+                ...mainStyles.input,
+                flex: 1,
+                fontSize: 14
+              },
+              type: "text",
+              placeholder: "Nom du wallet",
+              value: newNostrName,
+              onChange: (e) => setNewNostrName(e.target.value),
+              disabled: isAnyLoading
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              style: {
+                ...mainStyles.input,
+                flex: 2,
+                fontSize: 14
+              },
+              type: "password",
+              placeholder: "Clé privée Nostr (hex 64 chars)",
+              value: newNostrKey,
+              onChange: (e) => setNewNostrKey(e.target.value),
+              disabled: isAnyLoading
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { style: { display: "flex", alignItems: "center", fontSize: 12, color: "#6c757d" }, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "checkbox",
+                checked: newNostrSave,
+                onChange: (e) => setNewNostrSave(e.target.checked),
+                style: { marginRight: 6 },
+                disabled: isAnyLoading
+              }
+            ),
+            "Sauvegarder"
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              type: "button",
+              style: {
+                ...mainStyles.button,
+                ...mainStyles.primaryButton,
+                padding: "6px 12px",
+                fontSize: 14
+              },
+              onClick: handleAddNostrWallet,
+              disabled: !newNostrKey || !newNostrName || isAnyLoading,
+              children: "Ajouter"
+            }
+          )
+        ] })
+      ] }),
+      (nostrWallets.length > 0 || tempNostrWallets.length > 0) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { fontSize: 12 }, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: { color: "#6c757d", marginBottom: 4, fontWeight: "bold" }, children: [
+          "All wallets (",
+          nostrWallets.length + tempNostrWallets.length,
+          "):"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 4 }, children: [...nostrWallets, ...tempNostrWallets].map((wallet) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: {
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          padding: "4px 8px",
+          border: "1px solid #ddd",
+          borderRadius: 4,
+          fontSize: 11,
+          backgroundColor: walletState.nostr.isConnected && walletState.nostr.publicKey === wallet.address ? "#e8f5e8" : "#fff"
+        }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { fontWeight: "bold" }, children: wallet.name }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { style: { color: "#6c757d" }, children: [
+            "(",
+            truncateAddress(wallet.address, 3, 2),
+            ")"
+          ] }),
+          walletState.nostr.isConnected && walletState.nostr.publicKey === wallet.address && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: { color: "#65F152" }, children: "✓" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              type: "button",
+              style: {
+                background: "none",
+                border: "none",
+                color: "#dc3545",
+                cursor: "pointer",
+                padding: 0,
+                fontSize: 10
+              },
+              onClick: () => handleRemoveWallet(wallet.id, "nostr"),
               disabled: isAnyLoading,
               title: "Supprimer",
               children: "✖"
@@ -33667,6 +34021,7 @@ const WalletDialog = ({
       secureStorage.saveKeys({
         evm: evmKey,
         solana: solanaKeySaved && solanaKey && solanaKey.length > 0 ? solanaKey : void 0,
+        nostr: nostrKeySaved && nostrKey && nostrKey.length > 0 ? nostrKey : void 0,
         timestamp: Date.now()
       });
     }
@@ -33676,6 +34031,7 @@ const WalletDialog = ({
       secureStorage.saveKeys({
         evm: evmKeySaved && evmKey && evmKey.length > 0 ? evmKey : void 0,
         solana: solanaKey,
+        nostr: nostrKeySaved && nostrKey && nostrKey.length > 0 ? nostrKey : void 0,
         timestamp: Date.now()
       });
     }
@@ -33686,7 +34042,6 @@ const WalletDialog = ({
         evm: evmKeySaved && evmKey && evmKey.length > 0 ? evmKey : void 0,
         solana: solanaKeySaved && solanaKey && solanaKey.length > 0 ? solanaKey : void 0,
         nostr: nostrKey,
-        // Ajouter cette ligne
         timestamp: Date.now()
       });
     }
@@ -33779,10 +34134,7 @@ const WalletDialog = ({
       onClick: (e) => e.target === e.currentTarget && onClose(),
       children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: mainStyles.modal, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { style: mainStyles.header, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: mainStyles.title, children: "QuickWallet" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: mainStyles.subtitle, children: "React Edition" })
-          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { style: mainStyles.title, children: "QuickWallet" }) }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "button",
             {
@@ -34289,7 +34641,7 @@ class EvmWallet {
     __publicField$3(this, "isQuickWalletActive", false);
     __publicField$3(this, "quickWalletMode", "classic");
     __publicField$3(this, "originalRequest", null);
-    __publicField$3(this, "debug", false);
+    __publicField$3(this, "debug", true);
     __publicField$3(this, "handleModeChange", (event) => {
       if (event.detail.chain === "evm") {
         this.isQuickWalletActive = event.detail.active;
@@ -34390,10 +34742,9 @@ class EvmWallet {
       }
       return result;
     };
-    if (!_window.rabby) {
-      _window.rabby = _window.ethereum;
+    if (this.debug) {
+      console.log("ethereum.request hijacked (QuickWallet)");
     }
-    _window.rabby.request = _window.ethereum.request;
   }
   async sendTransaction(args) {
     const tx = args.params[0];

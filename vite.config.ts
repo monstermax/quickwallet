@@ -3,7 +3,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
-import inject from '@rollup/plugin-inject'
 
 
 export default defineConfig({
@@ -20,18 +19,18 @@ export default defineConfig({
             output: {
                 entryFileNames: '[name].js',
                 chunkFileNames: '[name].js',
-                assetFileNames: '[name].[ext]'
+                assetFileNames: '[name].[ext]',
             },
-			plugins: [inject({ Buffer: ['Buffer', 'Buffer'] })],
+			//plugins: [inject({ Buffer: ['Buffer', 'Buffer'] })],
         },
         target: 'es2020',
-        minify: false
+        minify: false,
     },
     define: {
-        'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV)
+        'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
     },
     esbuild: {
-        target: 'es2020'
+        target: 'es2020',
     }
 })
 

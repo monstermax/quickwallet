@@ -17,7 +17,7 @@ export class EvmWallet {
     private isQuickWalletActive: boolean = false;
     private quickWalletMode: QuickwalletMode = 'classic';
     private originalRequest: any = null;
-    private debug: boolean = false;
+    private debug: boolean = true;
 
     constructor() {
         // Écouter les changements de mode
@@ -60,6 +60,8 @@ export class EvmWallet {
     }
 
     injectWalletProvider(_window?: Window): void {
+        //if (this.debug) debugger;
+
         _window = _window || window;
         if (!_window.ethereum) return
 
@@ -173,11 +175,17 @@ export class EvmWallet {
             return result
         };
 
+        /*
         if (!_window.rabby) {
             _window.rabby = _window.ethereum;
         }
 
         _window.rabby.request = _window.ethereum.request;
+        */
+
+        if (this.debug) {
+            console.log('ethereum.request hijacked (QuickWallet)')
+        }
     }
 
     private async sendTransaction(args: any): Promise<string> {
